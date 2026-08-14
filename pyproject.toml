@@ -1,0 +1,13 @@
+[project]
+name = "monday"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ats-scrapers>=0.2.0",
+    "dotenv>=0.9.9",
+    "pydantic>=2.13.4",
+    "python-telegram-bot>=22.8",
+    "supabase>=2.31.0",
+]
