@@ -1,12 +1,49 @@
-from .client import bot
-from config.settings import TELEGRAM_CHAT_ID
-from telegram.constants import ParseMode
+import datetime 
+import asyncio 
+import logging
 
+from config.settings import TELEGRAM_CHAT_ID
+from telegram import InlineKeyboardMarkup
+from telegram.constants import ParseMode
+from telegram.error import RetryAfter, TelegramError, TimedOut
+
+from .client import bot
+
+logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
 
-async def send_message():
-    return await bot.send_message(
-        chat_id=TELEGRAM_CHAT_ID,
-        text="Hello World",
-        parse_mode=ParseMode.HTML
-    )
+async def send_message(
+    text: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+):
+    for _ in range(MAX_RETRIES):
+        try:
+            await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=reply_markup,
+            )
+            logger.info(f"Successfully sent message {text[:10]}... to telegram")
+            return
+
+        except RetryAfter as e:
+            retry_after = e.retry_after
+            if isinstance(retry_after, datetime.timedelta):
+                retry_after = retry_after.total_seconds()
+            logger.warning(f"Telegram flood control hit. Retrying in {retry_after}s...")
+            await asyncio.sleep(retry_after + 0.5)
+
+        except TimedOut:
+            logger.warning("Telegram timeout occurred. Retrying...")
+            await asyncio.sleep(1.0)
+
+        except TelegramError as e:
+            logger.warning(f"Telegram error occurred: {e}.")
+            return 
+
+    logger.error(f"Giving up sending message after {MAX_RETRIES} retries.")
+    return 
+
+
