@@ -1,6 +1,13 @@
 from pathlib import Path
 import pandas as pd
-from ats_scrapers.scrapers import LeverScraper, SmartRecruitersScraper, TikTokScraper
+from ats_scrapers.scrapers import (
+    LeverScraper,
+    SmartRecruitersScraper,
+    TikTokScraper,
+    GoogleScraper,
+    AppleScraper,
+    AmazonScraper,
+)
 from .base import ScraperSource
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -13,7 +20,16 @@ def _load_slugs(scraper_name: str) -> list[str]:
 
 SOURCES: list[ScraperSource] = [
     ScraperSource(
-        name="tiktok", scraper_cls=TikTokScraper, slugs=_load_slugs("tiktok")
+        name="tiktok", scraper_cls=TikTokScraper, slugs=_load_slugs("single")
+    ),
+    ScraperSource(
+        name="google", scraper_cls=GoogleScraper, slugs=_load_slugs("single"), include_descriptions=True
+    ),
+    ScraperSource(
+        name="apple", scraper_cls=AppleScraper, slugs=_load_slugs("single")
+    ),
+    ScraperSource(
+        name="amazon", scraper_cls=AmazonScraper, slugs=_load_slugs("single")
     ),
     ScraperSource(
         name="smartrecruiters",

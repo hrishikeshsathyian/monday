@@ -54,14 +54,22 @@ class ScraperSource:
 
         return raw
 
-    def _filter(self, jobs: list[Job]) -> tuple[list[Job], list[Job], list[Job]]:
+    def _filter(
+        self, jobs: list[Job], seen_ids: set[str]
+    ) -> tuple[list[Job], list[Job], list[Job]]:
+
+        logger.info(f"{len(jobs)} raw jobs found PRE-FILTER")
+
         tech_intern_jobs: list[Job] = []
         tech_non_intern_jobs: list[Job] = []
         non_tech_jobs: list[Job] = []
 
+
         for j in jobs:
-            logger.info(j.experience)
             # filter out non singaporean listings
+            if j.global_id in seen_ids:
+                continue
+
             if not self.is_singapore(j):
                 continue
 
@@ -76,6 +84,9 @@ class ScraperSource:
             tech_intern_jobs.append(j)
 
         return tech_intern_jobs, tech_non_intern_jobs, non_tech_jobs
-    
-    def scrape(self) -> tuple[list[Job], list[Job], list[Job]]:
-        return self._filter(self._fetch_all())
+
+    def scrape(
+        self,
+        seen_ids: set[str],
+    ) -> tuple[list[Job], list[Job], list[Job]]:
+        return self._filter(self._fetch_all(), seen_ids=seen_ids)

@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "ats-scrapers>=0.2.0",
+    "ats-scrapers[scrapers]>=0.2.0",
     "black>=26.5.1",
     "dotenv>=0.9.9",
     "pydantic>=2.13.4",

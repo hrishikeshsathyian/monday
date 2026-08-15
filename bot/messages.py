@@ -1,16 +1,22 @@
 import datetime
 import asyncio
 import logging
+import html
 
 from config.settings import TELEGRAM_CHAT_ID
 from telegram import InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.error import RetryAfter, TelegramError, TimedOut
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from .client import bot
+from ats_scrapers.models import Job
 
 logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
+
+
+# OVERALL MESSAGE SENDER
 
 
 async def send_message(
@@ -46,3 +52,27 @@ async def send_message(
 
     logger.error(f"Giving up sending message after {MAX_RETRIES} retries.")
     return
+
+
+async def send_job(job: Job):
+    text = (
+        "🚨 <b>Internship Alert</b>\n"
+        f"💼 {html.escape(job.title)}\n"
+        f"🏢 {html.escape(job.company)}"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text="Apply Now 🚀",
+                    url=str(job.apply_url),
+                )
+            ]
+        ]
+    )
+
+    return await send_message(
+        text=text,
+        reply_markup=keyboard,
+    )
