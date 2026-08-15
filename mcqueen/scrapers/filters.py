@@ -1,6 +1,7 @@
 from ats_scrapers.models import Job
 import re
 
+
 def default_is_singapore(j: Job) -> bool:
     _SINGAPORE_RE = re.compile(r"\b(singapore|sg|sgp)\b", re.IGNORECASE)
     return bool(j.location and _SINGAPORE_RE.search(j.location))
@@ -11,6 +12,7 @@ def default_is_intern(j: Job) -> bool:
     return bool(j.employment_type and j.employment_type == "INTERN") or bool(
         j.title and _INTERN_RE.search(j.title)
     )
+
 
 NON_TECH_ENGINEERING_RE = re.compile(
     r"\b(civil|mechanical|electrical|chemical|structural|industrial|"
@@ -81,9 +83,8 @@ TECH_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
+
 def default_is_tech(j: Job) -> bool:
-    if j.department and j.department == "CAREERSGOV_TECH":
-        return True
     haystack = " ".join(filter(None, [j.title, j.department]))
     if NON_TECH_ENGINEERING_RE.search(haystack):
         return False

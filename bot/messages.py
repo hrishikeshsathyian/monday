@@ -1,5 +1,5 @@
-import datetime 
-import asyncio 
+import datetime
+import asyncio
 import logging
 
 from config.settings import TELEGRAM_CHAT_ID
@@ -11,6 +11,7 @@ from .client import bot
 
 logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
+
 
 async def send_message(
     text: str,
@@ -41,9 +42,7 @@ async def send_message(
 
         except TelegramError as e:
             logger.warning(f"Telegram error occurred: {e}.")
-            return 
+            return
 
     logger.error(f"Giving up sending message after {MAX_RETRIES} retries.")
-    return 
-
-
+    return
