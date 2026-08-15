@@ -27,9 +27,16 @@ class ScraperSource:
 
     # fetch all jobs from one slug
     def _fetch_one(self, slug: str) -> list[Job]:
-        return self.scraper_cls(
-            slug, include_descriptions=self.include_descriptions
-        ).fetch()
+        try:
+            return self.scraper_cls(
+                slug, include_descriptions=self.include_descriptions
+            ).fetch()
+        except ATSScrapersError as exc:
+            logger.error(f"{exc} for {slug}")
+            return []
+        except Exception as exc:
+            logger.error(f"{exc} for {slug}")
+            return []
 
     def _fetch_all(self) -> list[Job]:
 
@@ -41,15 +48,7 @@ class ScraperSource:
             futures = {pool.submit(self._fetch_one, slug): slug for slug in self.slugs}
             for i, future in enumerate(as_completed(futures), start=1):
                 slug = futures[future]
-                try:
-                    result = future.result()
-                except ATSScrapersError as exc:
-                    logger.error(f"{exc} for {slug}")
-                    continue
-                except Exception as exc:
-                    logger.error(f"{exc} for {slug}")
-                    continue
-                raw.extend(result)
+                raw.extend(future.result())
                 logger.info(f"[{self.name}] ({i}/{len(futures)}) {slug}")
 
         return raw
