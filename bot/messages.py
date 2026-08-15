@@ -66,7 +66,7 @@ async def send_job(job: Job):
             [
                 InlineKeyboardButton(
                     text="Apply Now 🚀",
-                    url=str(job.apply_url),
+                    url=str(job.url),
                 )
             ]
         ]
