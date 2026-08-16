@@ -8,7 +8,7 @@ def default_is_singapore(j: Job) -> bool:
 
 
 def default_is_intern(j: Job) -> bool:
-    _INTERN_RE = re.compile(r"\b(intern|summer|fall|winter)\b", re.IGNORECASE)
+    _INTERN_RE = re.compile(r"\b(intern(ship)?|summer|fall|winter)\b", re.IGNORECASE)
     return bool(j.employment_type and j.employment_type == "INTERN") or bool(
         j.title and _INTERN_RE.search(j.title)
     )

@@ -57,9 +57,11 @@ async def run(sources: list[ScraperSource]) -> None:
         channel = JOB_CHANNELS[bucket]
         upsert_jobs(jobs, channel.table_name)
 
-        if channel.telegram_chat_id:
-            for job in jobs:
-                await send_job(job, chat_id=channel.telegram_chat_id)
+        # if channel.telegram_chat_id:
+        #     for job in jobs:
+        #         await send_job(
+        #             job, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
+        #         )
 
 
 if __name__ == "__main__":

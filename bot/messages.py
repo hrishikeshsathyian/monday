@@ -55,9 +55,10 @@ async def send_message(
     return
 
 
-async def send_job(job: Job, chat_id: str):
+async def send_job(job: Job, chat_id: str, is_intern: bool):
+    alert_type = "Internship" if is_intern else "Job"
     text = (
-        "🚨 <b>Internship Alert</b>\n"
+        f"🚨 <b>{alert_type} Alert</b>\n"
         f"💼 {html.escape(job.title)}\n"
         f"🏢 {html.escape(job.company)}"
     )

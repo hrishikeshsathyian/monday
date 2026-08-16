@@ -10,5 +10,6 @@ dependencies = [
     "dotenv>=0.9.9",
     "pydantic>=2.13.4",
     "python-telegram-bot>=22.8",
+    "requests>=2.34.2",
     "supabase>=2.31.0",
 ]

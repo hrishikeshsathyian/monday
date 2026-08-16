@@ -63,7 +63,6 @@ class ScraperSource:
         tech_non_intern_jobs: list[Job] = []
         non_tech_jobs: list[Job] = []
 
-
         for j in jobs:
             # filter out non singaporean listings
             if j.global_id in seen_ids:
