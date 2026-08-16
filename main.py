@@ -10,7 +10,7 @@ from config.settings import JOB_CHANNELS
 
 from db.jobs import upsert_jobs, get_seen_global_ids
 
-from bot.messages import send_job
+from bot.messages import send_job, send_job_batch, BATCH_THRESHOLD
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,10 +58,15 @@ async def run(sources: list[ScraperSource]) -> None:
         upsert_jobs(jobs, channel.table_name)
 
         if channel.telegram_chat_id:
-            for job in jobs:
-                await send_job(
-                    job, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
+            if len(jobs) > BATCH_THRESHOLD:
+                await send_job_batch(
+                    jobs, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
                 )
+            else:
+                for job in jobs:
+                    await send_job(
+                        job, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
+                    )
 
 
 if __name__ == "__main__":

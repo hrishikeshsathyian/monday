@@ -2,6 +2,7 @@ import datetime
 import asyncio
 import logging
 import html
+import textwrap
 
 from telegram import InlineKeyboardMarkup
 from telegram.constants import ParseMode
@@ -13,6 +14,8 @@ from ats_scrapers.models import Job
 
 logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
+MAX_MESSAGE_LENGTH = 4096
+BATCH_THRESHOLD = 10
 
 
 # OVERALL MESSAGE SENDER
@@ -79,3 +82,35 @@ async def send_job(job: Job, chat_id: str, is_intern: bool):
         text=text,
         reply_markup=keyboard,
     )
+
+
+def _job_line(job: Job) -> str:
+    return f'💼 {textwrap.shorten(html.escape(job.title), width=55, placeholder="...")} | 🏢 {html.escape(job.company)} | <a href="{html.escape(str(job.url), quote=True)}">🚀 Apply Now</a> \n'
+
+def _build_batch_messages(jobs: list[Job], alert_type: str) -> list[str]:
+    header = f"🚨 <b>{len(jobs)} New {alert_type} Alerts</b>\n\n"
+    messages: list[str] = []
+    current = header
+
+    for job in jobs:
+        line = _job_line(job)
+        addition = line if current == header else f"\n{line}"
+        if len(current) + len(addition) > MAX_MESSAGE_LENGTH:
+            messages.append(current)
+            current = header + line
+        else:
+            current += addition
+
+    if current != header or not messages:
+        messages.append(current)
+
+    return messages
+
+
+async def send_job_batch(jobs: list[Job], chat_id: str, is_intern: bool):
+    if not jobs:
+        return
+
+    alert_type = "Internship" if is_intern else "Job"
+    for text in _build_batch_messages(jobs, alert_type):
+        await send_message(chat_id=chat_id, text=text)
