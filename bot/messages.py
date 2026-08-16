@@ -47,7 +47,8 @@ async def send_message(
             await asyncio.sleep(1.0)
 
         except TelegramError as e:
-            logger.warning(f"Telegram error occurred: {e}.")
+            logger.error(f"Telegram error occurred: {e}.")
+            # do not retry if it is a telegram error just exit
             return
 
     logger.error(f"Giving up sending message after {MAX_RETRIES} retries.")
