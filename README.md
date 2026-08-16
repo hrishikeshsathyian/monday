@@ -1,4 +1,4 @@
-# monday
+# monday 📅
 
 Monday is a **pull only telegram-bot personal management system**. 
 
@@ -6,13 +6,13 @@ This project was inspired by the realisation that as a computing student, the pr
 
 Monday aims to provide users with these fragmented data, without needing the overhead of commands from the user or the need to open another app. They are fed through the users through a **pull only** telegram bot. 
 
-### Current State
+### 🚧 Current State
 
 Currently, the live job updates has been updated through a general public telegram channels listed below, while the remaining features are in development
 
-### Telegram Channel Links
+### 💬 Telegram Channel Links
 - [SG TECH GRAD POSTINGS](https://t.me/+MewlVkBO5hs3YzU1)
 - [SG TECH INTERN POSTINGS](https://t.me/+OmIAIHXeX1VlNTVl)
 
-### Current Architecture
+### 🏗️ Current Architecture
 ![monday-architecture](docs/architecture.png)
