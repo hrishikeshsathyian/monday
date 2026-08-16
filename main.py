@@ -1,44 +1,67 @@
+import argparse
+import asyncio
+
 from mcqueen.scripts.scrape import scrape_all_sources
+from mcqueen.scrapers.base import ScraperSource
+from mcqueen.scrapers.source import SOURCES
 
 from config.logging import setup_logging
-from config.settings import (
-    TECH_INTERN_JOBS_TABLE_NAME,
-    NON_TECH_JOBS_TABLE_NAME,
-    TECH_NON_INTERN_JOBS_TABLE_NAME,
-)
+from config.settings import JOB_CHANNELS
 
 from db.jobs import upsert_jobs, get_seen_global_ids
 
 from bot.messages import send_job
 
-import asyncio
+
+def parse_args() -> argparse.Namespace:
+    available_sources = [source.name for source in SOURCES]
+
+    parser = argparse.ArgumentParser(
+        description="Scrape configured job sources and publish new postings."
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--all",
+        action="store_true",
+        help="Scrape every configured source (default).",
+    )
+    group.add_argument(
+        "--sources",
+        nargs="+",
+        choices=available_sources,
+        metavar="SOURCE",
+        help=f"Scrape only these sources. Choices: {', '.join(available_sources)}",
+    )
+    return parser.parse_args()
 
 
-async def run():
+def resolve_sources(source_names: list[str] | None) -> list[ScraperSource]:
+    if source_names is None:
+        return SOURCES
+    return [source for source in SOURCES if source.name in source_names]
+
+
+async def run(sources: list[ScraperSource]) -> None:
     setup_logging()
-    # get seen_ids for all tables
-    tech_intern_jobs_seen_ids = get_seen_global_ids(TECH_INTERN_JOBS_TABLE_NAME)
-    tech_non_intern_jobs_seen_ids = get_seen_global_ids(TECH_NON_INTERN_JOBS_TABLE_NAME)
-    non_tech_jobs_seen_ids = get_seen_global_ids(NON_TECH_JOBS_TABLE_NAME)
-    seen_ids = tech_intern_jobs_seen_ids.union(
-        tech_non_intern_jobs_seen_ids, non_tech_jobs_seen_ids
-    )
 
-    tech_intern_jobs, tech_non_intern_jobs, non_tech_jobs = scrape_all_sources(
-        seen_ids,
-    )
+    seen_ids: set[str] = set()
+    for channel in JOB_CHANNELS.values():
+        seen_ids |= get_seen_global_ids(channel.table_name)
 
-    # insert into db
-    if len(tech_intern_jobs) > 0:
-        upsert_jobs(tech_intern_jobs, TECH_INTERN_JOBS_TABLE_NAME)
-    if len(tech_non_intern_jobs) > 0:
-        upsert_jobs(tech_non_intern_jobs, TECH_NON_INTERN_JOBS_TABLE_NAME)
-    if len(non_tech_jobs) > 0:
-        upsert_jobs(non_tech_jobs, NON_TECH_JOBS_TABLE_NAME)
+    jobs_by_bucket = scrape_all_sources(seen_ids, sources=sources)
 
-    for job in tech_intern_jobs:
-        await send_job(job)
+    for bucket, jobs in jobs_by_bucket.items():
+        if not jobs:
+            continue
+
+        channel = JOB_CHANNELS[bucket]
+        upsert_jobs(jobs, channel.table_name)
+
+        if channel.telegram_chat_id:
+            for job in jobs:
+                await send_job(job, chat_id=channel.telegram_chat_id)
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    args = parse_args()
+    asyncio.run(run(sources=resolve_sources(args.sources)))

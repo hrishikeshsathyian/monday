@@ -1,13 +1,27 @@
 import os
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-# db config
-TECH_INTERN_JOBS_TABLE_NAME = "tech_intern_jobs"
-TECH_NON_INTERN_JOBS_TABLE_NAME = "tech_non_intern_jobs"
-NON_TECH_JOBS_TABLE_NAME = "non_tech_jobs"
+
+@dataclass(frozen=True)
+class JobChannel:
+    table_name: str
+    telegram_chat_id: str | None = None
+
+
+JOB_CHANNELS: dict[str, JobChannel] = {
+    "tech_intern": JobChannel(
+        table_name="tech_intern_jobs",
+        telegram_chat_id=os.environ["TELEGRAM_CHAT_ID"],
+    ),
+    "tech_non_intern": JobChannel(
+        table_name="tech_non_intern_jobs",
+        telegram_chat_id=os.environ["TELEGRAM_CHAT_ID_NON_INTERN"]
+    ),
+    "non_tech": JobChannel(table_name="non_tech_jobs"),
+}

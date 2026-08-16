@@ -3,7 +3,6 @@ import asyncio
 import logging
 import html
 
-from config.settings import TELEGRAM_CHAT_ID
 from telegram import InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.error import RetryAfter, TelegramError, TimedOut
@@ -20,13 +19,14 @@ MAX_RETRIES = 5
 
 
 async def send_message(
+    chat_id: str,
     text: str,
     reply_markup: InlineKeyboardMarkup | None = None,
 ):
     for _ in range(MAX_RETRIES):
         try:
             await bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID,
+                chat_id=chat_id,
                 text=text,
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
@@ -55,7 +55,7 @@ async def send_message(
     return
 
 
-async def send_job(job: Job):
+async def send_job(job: Job, chat_id: str):
     text = (
         "🚨 <b>Internship Alert</b>\n"
         f"💼 {html.escape(job.title)}\n"
@@ -74,6 +74,7 @@ async def send_job(job: Job):
     )
 
     return await send_message(
+        chat_id=chat_id,
         text=text,
         reply_markup=keyboard,
     )
