@@ -1,8 +1,6 @@
-name: Scrape and Update Jobs
+name: Scrape and Update Jobs (only tiktok)
 
 on:
-  schedule:
-    - cron: '08 */2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run Scraper
+      - name: Run Scraper (tiktok only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
@@ -29,5 +27,5 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_CHAT_ID_NON_INTERN: ${{ secrets.TELEGRAM_CHAT_ID_NON_INTERN }}
-        run: uv run main.py --all
+        run: uv run main.py --sources tiktok
 
