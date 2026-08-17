@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from ats_scrapers.models import Job
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ats_scrapers.exceptions import ATSScrapersError
-from .filters import default_is_intern, default_is_singapore, default_is_tech
+from .filters import (
+    default_is_intern,
+    default_is_senior,
+    default_is_singapore,
+    default_is_tech,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,6 +25,7 @@ class ScraperSource:
     is_singapore: JobFilter = default_is_singapore
     is_intern: JobFilter = default_is_intern
     is_tech: JobFilter = default_is_tech
+    is_senior: JobFilter = default_is_senior
     max_workers: int = 8
     include_descriptions: bool = (
         False  # set to false to prevent smartrecruiters from making excesive per listings calls that triggers rate limiting
@@ -62,6 +68,7 @@ class ScraperSource:
         tech_intern_jobs: list[Job] = []
         tech_non_intern_jobs: list[Job] = []
         non_tech_jobs: list[Job] = []
+        senior_dropped: list[str] = []
 
         for j in jobs:
             # filter out non singaporean listings
@@ -76,10 +83,20 @@ class ScraperSource:
                 continue
 
             if not self.is_intern(j):
+                # tech_non_intern is the "grad" bucket — senior/managerial
+                # postings aren't grad-appropriate, so drop them here.
+                if self.is_senior(j):
+                    senior_dropped.append(j.title)
+                    continue
                 tech_non_intern_jobs.append(j)
                 continue
 
             tech_intern_jobs.append(j)
+
+        if senior_dropped:
+            logger.info(f"[{self.name}] dropped {len(senior_dropped)} senior/non-grad postings")
+            for dropped_title in senior_dropped:
+                logger.info(f"Dropped {dropped_title}")
 
         return tech_intern_jobs, tech_non_intern_jobs, non_tech_jobs
 
