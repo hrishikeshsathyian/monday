@@ -36,3 +36,23 @@ class DbJob(BaseModel):
             posted_at=job.posted_at,
             fetched_at=datetime.now(ZoneInfo("Asia/Singapore")),
         )
+
+
+class DbUser(BaseModel):
+    telegram_user_id: int
+    telegram_chat_id: int
+    telegram_username: Optional[str]
+
+    created_at: datetime
+    updated_at: datetime
+
+
+class DbServiceCredential(BaseModel):
+    user_id: int # references users(telegram_user_id) on delete cascade,
+    service: str
+    encrypted_secret: Optional[str]
+    enabled: bool
+
+    created_at: datetime
+    updated_at: datetime
+    #primary key (user_id, service)

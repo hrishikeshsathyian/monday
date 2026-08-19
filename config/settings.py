@@ -6,6 +6,7 @@ load_dotenv()
 
 # TELEGRAM CONFIG
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+MONDAY_BOT_TOKEN = os.environ["MONDAY_BOT_TOKEN"]
 
 # SCRAPER CONFIG
 CAREERS_GOV_URL = "https://raw.githubusercontent.com/opengovsg/careersgovsg-jobs-data/main/data/job-listings.json"
