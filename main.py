@@ -11,7 +11,7 @@ from config.settings import JOB_CHANNELS
 from db.jobs import upsert_jobs, get_seen_global_ids
 
 from bot.messages import send_job, send_job_batch, BATCH_THRESHOLD
-
+from bot.monday import run_monday
 
 def parse_args() -> argparse.Namespace:
     available_sources = [source.name for source in SOURCES]
@@ -69,6 +69,12 @@ async def run(sources: list[ScraperSource]) -> None:
                     )
 
 
+def test_monday() -> None: 
+    run_monday()
+
+
+
 if __name__ == "__main__":
-    args = parse_args()
-    asyncio.run(run(sources=resolve_sources(args.sources)))
+    # args = parse_args()
+    # asyncio.run(run(sources=resolve_sources(args.sources)))
+    test_monday()
