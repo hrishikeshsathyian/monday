@@ -127,7 +127,7 @@ TECH_RE = re.compile(
 
         # --- emerging / misc tech ---
         blockchain | web3 | smart\s+contract | robotics |
-        augmented\s+reality | virtual\s+reality |
+        augmented\s+reality | virtual\s+reality | quant |
 
         # --- generic fallback ---
         technology
@@ -140,7 +140,7 @@ TECH_RE = re.compile(
 # uppercase form — lowercased, they collide with ordinary English words
 # ("it", "ai") that show up in unrelated title text. Deliberately NOT
 # case-insensitive.
-TECH_ACRONYM_RE = re.compile(r"\b(IT|AI|ML)\b")
+TECH_ACRONYM_RE = re.compile(r"\b(IT|AI|ML|CSA)\b")
 
 
 def default_is_tech(j: Job) -> bool:
