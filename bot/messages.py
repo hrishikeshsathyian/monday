@@ -4,12 +4,12 @@ import logging
 import html
 import textwrap
 
-from telegram import InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, Bot
 from telegram.constants import ParseMode
 from telegram.error import RetryAfter, TelegramError, TimedOut
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from .client import bot
+from .client import bot as mcqueen_bot
 from ats_scrapers.models import Job
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ async def send_message(
     chat_id: str,
     text: str,
     reply_markup: InlineKeyboardMarkup | None = None,
+    bot: Bot = mcqueen_bot,
 ):
     for _ in range(MAX_RETRIES):
         try:
@@ -87,6 +88,7 @@ async def send_job(job: Job, chat_id: str, is_intern: bool):
 
 def _job_line(job: Job) -> str:
     return f'💼 {textwrap.shorten(html.escape(job.title), width=55, placeholder="...")} | 🏢 {html.escape(job.company)} | <a href="{html.escape(str(job.url), quote=True)}">🚀 Apply Now</a> \n'
+
 
 def _build_batch_messages(jobs: list[Job], alert_type: str) -> list[str]:
     header = f"🚨 <b>{len(jobs)} New {alert_type} Alerts</b>\n\n"

@@ -94,7 +94,9 @@ class ScraperSource:
             tech_intern_jobs.append(j)
 
         if senior_dropped:
-            logger.info(f"[{self.name}] dropped {len(senior_dropped)} senior/non-grad postings")
+            logger.info(
+                f"[{self.name}] dropped {len(senior_dropped)} senior/non-grad postings"
+            )
             for dropped_title in senior_dropped:
                 logger.info(f"Dropped {dropped_title}")
 
