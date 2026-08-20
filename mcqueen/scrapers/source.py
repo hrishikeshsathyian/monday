@@ -7,7 +7,7 @@ from ats_scrapers.scrapers import (
     GoogleScraper,
     AppleScraper,
     AmazonScraper,
-    GreenhouseScraper
+    GreenhouseScraper,
 )
 from .custom.careersgov import CareersGovScraper
 from .base import ScraperSource
@@ -43,7 +43,9 @@ SOURCES: list[ScraperSource] = [
     ScraperSource(
         name="careersgov", scraper_cls=CareersGovScraper, slugs=_load_slugs("single")
     ),
-        ScraperSource(
-        name="greenhouse", scraper_cls=GreenhouseScraper, slugs=_load_slugs("greenhouse")
+    ScraperSource(
+        name="greenhouse",
+        scraper_cls=GreenhouseScraper,
+        slugs=_load_slugs("greenhouse"),
     ),
 ]

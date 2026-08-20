@@ -13,6 +13,7 @@ from db.jobs import upsert_jobs, get_seen_global_ids
 from bot.messages import send_job, send_job_batch, BATCH_THRESHOLD
 from bot.monday import run_monday
 
+
 def parse_args() -> argparse.Namespace:
     available_sources = [source.name for source in SOURCES]
 
@@ -65,13 +66,14 @@ async def run(sources: list[ScraperSource]) -> None:
             else:
                 for job in jobs:
                     await send_job(
-                        job, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
+                        job,
+                        chat_id=channel.telegram_chat_id,
+                        is_intern=channel.is_intern,
                     )
 
 
-def test_monday() -> None: 
+def test_monday() -> None:
     run_monday()
-
 
 
 if __name__ == "__main__":

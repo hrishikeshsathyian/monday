@@ -8,6 +8,10 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 MONDAY_BOT_TOKEN = os.environ["MONDAY_BOT_TOKEN"]
 
+# MONDAYBOT CONFIG
+# Value stored in service_credentials.service for the job-alerts feed.
+MCQUEEN_SERVICE = "mcqueen"
+
 # SCRAPER CONFIG
 CAREERS_GOV_URL = "https://raw.githubusercontent.com/opengovsg/careersgovsg-jobs-data/main/data/job-listings.json"
 CAREERS_GOV_INTERNSHIP_EMPLOYMENT_TYPE = "Internship"

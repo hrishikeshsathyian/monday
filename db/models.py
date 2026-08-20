@@ -48,11 +48,11 @@ class DbUser(BaseModel):
 
 
 class DbServiceCredential(BaseModel):
-    user_id: int # references users(telegram_user_id) on delete cascade,
+    user_id: int  # references users(telegram_user_id) on delete cascade,
     service: str
     encrypted_secret: Optional[str]
     enabled: bool
 
     created_at: datetime
     updated_at: datetime
-    #primary key (user_id, service)
+    # primary key (user_id, service)
