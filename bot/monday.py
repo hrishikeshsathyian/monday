@@ -3,7 +3,6 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-from config.logging import setup_logging
 from config.settings import MCQUEEN_SERVICE, MONDAY_BOT_TOKEN
 from db.service_credentials import create_service_credential
 from db.users import try_create_user, get_user
@@ -61,8 +60,6 @@ async def handle_register(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 def run_monday() -> None:
-    setup_logging()
-
     app = Application.builder().token(MONDAY_BOT_TOKEN).build()
     app.add_handler(CommandHandler(["start", "monday"], handle_register))
 

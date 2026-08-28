@@ -1,16 +1,11 @@
 import argparse
 import asyncio
 
-from mcqueen.scripts.scrape import scrape_all_sources
-from mcqueen.scrapers.base import ScraperSource
+from mcqueen.runner import McQueenRunner
 from mcqueen.scrapers.source import SOURCES
 
 from config.logging import setup_logging
-from config.settings import JOB_CHANNELS
 
-from db.jobs import upsert_jobs, get_seen_global_ids
-
-from bot.messages import send_job, send_job_batch, BATCH_THRESHOLD
 from bot.monday import run_monday
 
 
@@ -18,9 +13,15 @@ def parse_args() -> argparse.Namespace:
     available_sources = [source.name for source in SOURCES]
 
     parser = argparse.ArgumentParser(
-        description="Scrape configured job sources and publish new postings."
+        description="Monday — job scraping and assistant bot."
     )
-    group = parser.add_mutually_exclusive_group()
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    scrape = subparsers.add_parser(
+        "scrape",
+        help="Scrape configured job sources and publish new postings.",
+    )
+    group = scrape.add_mutually_exclusive_group()
     group.add_argument(
         "--all",
         action="store_true",
@@ -33,49 +34,18 @@ def parse_args() -> argparse.Namespace:
         metavar="SOURCE",
         help=f"Scrape only these sources. Choices: {', '.join(available_sources)}",
     )
+
+    subparsers.add_parser("monday", help="Run the MondayBot polling loop.")
+
     return parser.parse_args()
-
-
-def resolve_sources(source_names: list[str] | None) -> list[ScraperSource]:
-    if source_names is None:
-        return SOURCES
-    return [source for source in SOURCES if source.name in source_names]
-
-
-async def run(sources: list[ScraperSource]) -> None:
-    setup_logging()
-
-    seen_ids: set[str] = set()
-    for channel in JOB_CHANNELS.values():
-        seen_ids |= get_seen_global_ids(channel.table_name)
-
-    jobs_by_bucket = scrape_all_sources(seen_ids, sources=sources)
-
-    for bucket, jobs in jobs_by_bucket.items():
-        if not jobs:
-            continue
-
-        channel = JOB_CHANNELS[bucket]
-        upsert_jobs(jobs, channel.table_name)
-
-        if channel.telegram_chat_id:
-            if len(jobs) > BATCH_THRESHOLD:
-                await send_job_batch(
-                    jobs, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
-                )
-            else:
-                for job in jobs:
-                    await send_job(
-                        job,
-                        chat_id=channel.telegram_chat_id,
-                        is_intern=channel.is_intern,
-                    )
-
-
-def test_monday() -> None:
-    run_monday()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(run(sources=resolve_sources(args.sources)))
+    setup_logging()
+
+    if args.command == "monday":
+        # run_polling manages its own event loop, so never wrap this in asyncio.run().
+        run_monday()
+    else:
+        asyncio.run(McQueenRunner.from_source_names(args.sources).run())

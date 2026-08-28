@@ -27,5 +27,6 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_CHAT_ID_NON_INTERN: ${{ secrets.TELEGRAM_CHAT_ID_NON_INTERN }}
-        run: uv run main.py --sources tiktok
+          MONDAY_BOT_TOKEN: ${{ secrets.MONDAY_BOT_TOKEN }}
+        run: uv run main.py scrape --sources tiktok
 
