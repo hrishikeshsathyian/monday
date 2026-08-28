@@ -31,10 +31,11 @@ def get_user(telegram_user_id: int) -> DbUser | None:
         logger.error(f"Unexpected exception {e} fetching user {telegram_user_id}")
         return None
 
-    if not response.data: 
+    if not response.data:
         return None
-    
+
     return DbUser.model_validate(response.data[0])
+
 
 def try_create_user(
     telegram_user_id: int,
