@@ -7,7 +7,8 @@ from ats_scrapers.scrapers import (
     GoogleScraper,
     AppleScraper,
     AmazonScraper,
-    GreenhouseScraper
+    GreenhouseScraper,
+    WorkdayScraper,
 )
 from .custom.careersgov import CareersGovScraper
 from .base import ScraperSource
@@ -17,6 +18,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 def _load_slugs(scraper_name: str) -> list[str]:
     path = DATA_DIR / f"{scraper_name.lower()}.csv"
+    ## in workday.csv we specifically swap slug and url in the csv header, check data/workday.csv
     return pd.read_csv(path)["slug"].tolist()
 
 
@@ -43,7 +45,12 @@ SOURCES: list[ScraperSource] = [
     ScraperSource(
         name="careersgov", scraper_cls=CareersGovScraper, slugs=_load_slugs("single")
     ),
-        ScraperSource(
-        name="greenhouse", scraper_cls=GreenhouseScraper, slugs=_load_slugs("greenhouse")
+    ScraperSource(
+        name="greenhouse",
+        scraper_cls=GreenhouseScraper,
+        slugs=_load_slugs("greenhouse"),
+    ),
+    ScraperSource(
+        name="workday", scraper_cls=WorkdayScraper, slugs=_load_slugs("workday")
     ),
 ]
