@@ -79,4 +79,3 @@ def test_monday() -> None:
 if __name__ == "__main__":
     args = parse_args()
     asyncio.run(run(sources=resolve_sources(args.sources)))
-
