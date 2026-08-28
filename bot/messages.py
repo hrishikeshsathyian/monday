@@ -65,7 +65,7 @@ async def send_job(job: Job, chat_id: str, is_intern: bool):
         f"🚨 <b>{alert_type} Alert</b>\n"
         f"💼 {html.escape(job.title)}\n"
         f"🏢 {html.escape(job.company)}\n"
-        f"💰 {html.escape(job.salary_summary if job.salary_summary else "-")}"
+        f"📍 {html.escape(job.location if job.location else "Singapore")}"
     )
 
     keyboard = InlineKeyboardMarkup(
