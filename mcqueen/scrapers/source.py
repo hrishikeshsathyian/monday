@@ -11,6 +11,7 @@ from ats_scrapers.scrapers import (
     WorkdayScraper,
     AshbyScraper,
     BytedanceScraper,
+    WorkableScraper,
 )
 from .custom.careersgov import CareersGovScraper
 from .base import ScraperSource
@@ -61,5 +62,8 @@ SOURCES: list[ScraperSource] = [
     ScraperSource(
         name="bytedance", scraper_cls=BytedanceScraper, slugs=_load_slugs("single")
     ),
+    ScraperSource(
+        name="workable", scraper_cls=WorkableScraper, slugs=_load_slugs("workable")
+    )
 
 ]
