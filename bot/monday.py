@@ -3,7 +3,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-from config.settings import MCQUEEN_SERVICE, MONDAY_BOT_TOKEN
+from config.settings import MONDAY_BOT_TOKEN
 from db.service_credentials import (
     get_service_credentials,
     set_service_enabled,
@@ -14,14 +14,14 @@ from db.users import get_user, try_create_user
 logger = logging.getLogger(__name__)
 
 
-SERVICE_COMMANDS: dict[str, str] = {
-    "mcqueen": "mcqueen",
-    "canvas": "canvas",
+MONDAY_SERVICES: dict[str, str] = {
+    "mcqueen": "Lightning Fast Live Scraper for SG Computing Internships",
+    "hermione": "Automatic Canvas File Sync & Quiz Deadline Reminder",
 }
 
 
 ALREADY_REGISTERED_TEXT = (
-    "✅ <b>You're already set up!</b>\n\n"
+    "<b>You're already set up!</b>\n\n"
     "You can manage your services anytime using the commands below."
 )
 
@@ -39,7 +39,7 @@ SIGNUP_FAILED_TEXT = (
 )
 
 NOT_REGISTERED_TEXT = (
-    "👋 <b>Oops! You're not registered yet.</b>\n\n"
+    "<b>Oops! You're not registered yet.</b>\n\n"
     "Run /start first to get set up."
 )
 
@@ -154,13 +154,6 @@ async def handle_register(
         )
         return
 
-    logger.info(
-        "Registered user %s (@%s) with %s",
-        user.id,
-        user.username,
-        MCQUEEN_SERVICE,
-    )
-
     await update.message.reply_text(
         WELCOME_TEXT,
         parse_mode="HTML",
@@ -190,10 +183,7 @@ async def handle_service_toggle(
         .split("@")[0]
     )
 
-    service = SERVICE_COMMANDS.get(command)
-
-    if service is None:
-        return
+    service = command
 
     if get_user(user.id) is None:
         await update.message.reply_text(
@@ -242,12 +232,12 @@ async def handle_service_toggle(
 
     if new_state:
         await update.message.reply_text(
-            f"✅ <b>{service.title()}</b> enabled.",
+            f"<b>{service.title()}</b> enabled.",
             parse_mode="HTML",
         )
     else:
         await update.message.reply_text(
-            f"○ <b>{service.title()}</b> disabled.",
+            f"<b>{service.title()}</b> disabled.",
             parse_mode="HTML",
         )
 
@@ -270,7 +260,7 @@ def run_monday() -> None:
 
     app.add_handler(
         CommandHandler(
-            list(SERVICE_COMMANDS),
+            list(MONDAY_SERVICES.keys()),
             handle_service_toggle,
         )
     )

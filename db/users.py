@@ -14,8 +14,9 @@ USERS_TABLE = "users"
 
 SERVICES : dict[str, bool] = {
     "mcqueen": True,
-    "canvas": False,
+    "hermione": False,
 }
+
 def get_user(telegram_user_id: int) -> DbUser | None:
     try:
         response = (
