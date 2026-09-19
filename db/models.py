@@ -41,18 +41,17 @@ class DbJob(BaseModel):
 class DbUser(BaseModel):
     telegram_user_id: int
     telegram_chat_id: int
-    telegram_username: Optional[str]
+    telegram_username: str
 
     created_at: datetime
-    updated_at: datetime
 
 
-class DbServiceCredential(BaseModel):
-    user_id: int  # references users(telegram_user_id) on delete cascade,
+class DbUserService(BaseModel):
+    telegram_user_id: int
     service: str
-    encrypted_secret: Optional[str]
     enabled: bool
+    encrypted_secret: Optional[str] = None
+    expires_at: Optional[datetime] = None
 
     created_at: datetime
     updated_at: datetime
-    # primary key (user_id, service)
