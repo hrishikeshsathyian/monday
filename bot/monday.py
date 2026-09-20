@@ -1,9 +1,22 @@
 import logging
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from config.settings import MONDAY_BOT_TOKEN
+from bot.hermione import (
+    AWAITING_CANVAS_API_KEY,
+    cancel_hermione_auth,
+    prompt_canvas_auth,
+    receive_canvas_api_key,
+)
 from db.service_credentials import (
     get_service_credentials,
     set_service_enabled,
@@ -14,6 +27,8 @@ from db.users import get_user, try_create_user
 logger = logging.getLogger(__name__)
 
 
+# Services exposed as Telegram commands.
+# The key is the command name, e.g. /mcqueen or /hermione.
 MONDAY_SERVICES: dict[str, str] = {
     "mcqueen": "Lightning Fast Live Scraper for SG Computing Internships",
     "hermione": "Automatic Canvas File Sync & Quiz Deadline Reminder",
@@ -48,9 +63,12 @@ SERVICE_STATE_FAILED_TEXT = (
     "Please try again in a moment."
 )
 
+
 def format_service_overview(
     service_credentials: list[DbUserService],
 ) -> str:
+    """Build the Telegram message showing each service's current state."""
+
     lines = [
         "⚙️ <b>Your services</b>",
         "",
@@ -78,6 +96,9 @@ def format_service_overview(
 
 
 async def send_service_overview(update: Update) -> None:
+    """Fetch the user's services and send their current enabled/disabled states."""
+
+    # Some Telegram updates do not contain a normal message.
     if update.message is None:
         return
 
@@ -102,11 +123,10 @@ async def send_service_overview(update: Update) -> None:
 
 async def handle_register(
     update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
+    _context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    del context
+    """Handle /start and create the user's Monday account if needed."""
 
-    # Edited messages and channel posts may arrive without .message.
     if update.message is None:
         return
 
@@ -122,6 +142,7 @@ async def handle_register(
         )
         return
 
+    # Existing users do not need to be registered again.
     if get_user(user.id) is not None:
         logger.info(
             "User %s (@%s) is already registered",
@@ -143,6 +164,7 @@ async def handle_register(
         user.username,
     )
 
+    # Store the Telegram user/chat details and initialise their services.
     if not try_create_user(
         telegram_user_id=user.id,
         telegram_chat_id=chat.id,
@@ -165,17 +187,26 @@ async def handle_register(
 async def handle_service_toggle(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
-) -> None:
+) -> int:
+    """Toggle the service corresponding to the command the user sent."""
+
     del context
 
     if update.message is None:
-        return
+        return ConversationHandler.END
 
     user = update.effective_user
 
     if user is None:
-        return
+        await update.message.reply_text(
+                    SERVICE_STATE_FAILED_TEXT,
+                    parse_mode="HTML",
+        )
+        return ConversationHandler.END
 
+    # Extract "hermione" from commands such as:
+    # /hermione
+    # /hermione@MondayBot
     command = (
         (update.message.text or "")
         .split()[0]
@@ -185,12 +216,13 @@ async def handle_service_toggle(
 
     service = command
 
+    # Service commands are only available after /start registration.
     if get_user(user.id) is None:
         await update.message.reply_text(
             NOT_REGISTERED_TEXT,
             parse_mode="HTML",
         )
-        return
+        return ConversationHandler.END
 
     service_credentials = get_service_credentials(user.id)
 
@@ -199,8 +231,9 @@ async def handle_service_toggle(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
         )
-        return
+        return ConversationHandler.END
 
+    # Find the current enabled state for the requested service.
     current_state = next(
         (
             credential.enabled
@@ -215,10 +248,29 @@ async def handle_service_toggle(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
         )
-        return
+        return ConversationHandler.END
 
     new_state = not current_state
 
+    # Hermione requires a Canvas API key before it can be enabled.
+    # If the user has not authenticated before, begin the auth conversation
+    # instead of enabling the service immediately.
+    if (
+        service == "hermione"
+        and new_state
+        and not next(
+            credential.encrypted_secret
+            for credential in service_credentials
+            if credential.service == service
+        )
+    ):
+        await prompt_canvas_auth(update)
+
+        # ConversationHandler will now route the user's next text message
+        # to receive_canvas_api_key().
+        return AWAITING_CANVAS_API_KEY
+
+    # Services that do not require authentication can be toggled immediately.
     if not set_service_enabled(
         user.id,
         service,
@@ -228,7 +280,7 @@ async def handle_service_toggle(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
         )
-        return
+        return ConversationHandler.END
 
     if new_state:
         await update.message.reply_text(
@@ -243,14 +295,20 @@ async def handle_service_toggle(
 
     await send_service_overview(update)
 
+    # No further interaction is needed for this command.
+    return ConversationHandler.END
+
 
 def run_monday() -> None:
+    """Create the Telegram application, register handlers and start polling."""
+
     app = (
         Application.builder()
         .token(MONDAY_BOT_TOKEN)
         .build()
     )
 
+    # /start handles initial user registration.
     app.add_handler(
         CommandHandler(
             "start",
@@ -258,10 +316,35 @@ def run_monday() -> None:
         )
     )
 
+    # Service commands act as both normal toggles and entry points into
+    # multi-step flows such as Hermione's Canvas authentication.
     app.add_handler(
-        CommandHandler(
-            list(MONDAY_SERVICES.keys()),
-            handle_service_toggle,
+        ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    list(MONDAY_SERVICES.keys()),
+                    handle_service_toggle,
+                ),
+            ],
+
+            # If handle_service_toggle returns AWAITING_CANVAS_API_KEY,
+            # the next non-command text message is treated as the API key.
+            states={
+                AWAITING_CANVAS_API_KEY: [
+                    MessageHandler(
+                        filters.TEXT & ~filters.COMMAND,
+                        receive_canvas_api_key,
+                    ),
+                ],
+            },
+
+            # /cancel lets the user exit the Hermione authentication flow.
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    cancel_hermione_auth,
+                ),
+            ],
         )
     )
 

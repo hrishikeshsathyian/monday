@@ -15,6 +15,9 @@ CAREERS_GOV_INTERNSHIP_EMPLOYMENT_TYPE_CODE = "0005"
 CAREERS_GOV_INDUSTRY_FIELD_CODE_OTHERS = "0025"
 CAREERS_GOV_INDUSTRY_FIELD_CODE_IT = "0017"
 
+# HERMIONE CONFIG 
+FERNET_KEY = os.environ["FERNET_KEY"]
+SERVICE_CREDENTIALS_TABLE = "user_services"
 
 # MISC CONFIG
 @dataclass(frozen=True)
@@ -32,7 +35,6 @@ JOB_CHANNELS: dict[str, JobChannel] = {
     ),
     "tech_non_intern": JobChannel(
         table_name="tech_non_intern_jobs",
-        telegram_chat_id=os.environ["TELEGRAM_CHAT_ID_NON_INTERN"],
         is_intern=False,
     ),
     "non_tech": JobChannel(table_name="non_tech_jobs", is_intern=False),
