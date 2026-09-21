@@ -1,5 +1,6 @@
 {
   "python.analysis.diagnosticSeverityOverrides": { // added for the canvasapi missing stub error
       "reportMissingTypeStubs": "none"
-  }
+  },
+  "python.analysis.typeCheckingMode": "standard"
 }
