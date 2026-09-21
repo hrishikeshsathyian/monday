@@ -18,7 +18,7 @@ CAREERS_GOV_INDUSTRY_FIELD_CODE_IT = "0017"
 # HERMIONE CONFIG 
 FERNET_KEY = os.environ["FERNET_KEY"]
 SERVICE_CREDENTIALS_TABLE = "user_services"
-
+CANVAS_API_KEY= os.environ["CANVAS_API_KEY"]
 # MISC CONFIG
 @dataclass(frozen=True)
 class JobChannel:

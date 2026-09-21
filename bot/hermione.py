@@ -30,6 +30,7 @@ SERVICE_STATE_FAILED_TEXT = (
 ENABLED_TEXT = "<b>Hermione authenticated.</b> Unless set otherwise, your key will be valid for the next 3 months."
 CANCELLED_TEXT = "Hermione setup cancelled."
 
+## HERMIONE AUTHENTICATION
 
 async def prompt_canvas_auth(update: Update) -> None:
     if update.message is not None:

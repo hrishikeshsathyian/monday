@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from ats_scrapers.models import Job
 
-from bot.messages import BATCH_THRESHOLD, send_job, send_job_batch
+from bot.mcqueen import BATCH_THRESHOLD, send_job, send_job_batch
 from config.settings import JOB_CHANNELS, JobChannel
 from db.jobs import get_seen_global_ids, upsert_jobs
 
