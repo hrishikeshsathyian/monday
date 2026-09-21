@@ -30,5 +30,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_CHAT_ID_NON_INTERN: ${{ secrets.TELEGRAM_CHAT_ID_NON_INTERN }}
           MONDAY_BOT_TOKEN: ${{ secrets.MONDAY_BOT_TOKEN }}
+          FERNET_KEY: ${{ secrets.FERNET_KEY }}
         run: uv run main.py scrape --all
 
