@@ -62,6 +62,25 @@ class McQueenRunner:
         Found {len(non_tech_jobs)} NEW NON TECH NON INTERN POSTINGS
         """)
 
+        for bucket, jobs in buckets.items():
+            unique_jobs: dict[str, Job] = {}
+            duplicate_ids: set[str] = set()
+
+            for job in jobs:
+                if job.global_id in unique_jobs:
+                    duplicate_ids.add(job.global_id)
+                    continue
+                unique_jobs[job.global_id] = job
+
+            if duplicate_ids:
+                logger.warning(
+                    "Dropped %d duplicate job(s) from %s: %s",
+                    len(jobs) - len(unique_jobs),
+                    bucket,
+                    ", ".join(sorted(duplicate_ids)),
+                )
+            buckets[bucket] = list(unique_jobs.values())
+
         return buckets
 
     async def _publish(self, channel: JobChannel, jobs: list[Job]) -> None:

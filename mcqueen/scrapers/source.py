@@ -56,14 +56,11 @@ SOURCES: list[ScraperSource] = [
     ScraperSource(
         name="workday", scraper_cls=WorkdayScraper, slugs=_load_slugs("workday")
     ),
-    ScraperSource(
-        name="ashby", scraper_cls=AshbyScraper, slugs=_load_slugs("ashby")
-    ),
+    ScraperSource(name="ashby", scraper_cls=AshbyScraper, slugs=_load_slugs("ashby")),
     ScraperSource(
         name="bytedance", scraper_cls=BytedanceScraper, slugs=_load_slugs("single")
     ),
     ScraperSource(
         name="workable", scraper_cls=WorkableScraper, slugs=_load_slugs("workable")
-    )
-
+    ),
 ]
