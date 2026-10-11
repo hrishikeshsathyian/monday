@@ -12,10 +12,11 @@ logger = logging.getLogger(__name__)
 
 USERS_TABLE = "users"
 
-SERVICES : dict[str, bool] = {
-    "mcqueen": True,
+SERVICES: dict[str, bool] = {
+    "mcqueen": False,
     "hermione": False,
 }
+
 
 def get_user(telegram_user_id: int) -> DbUser | None:
     try:
@@ -56,7 +57,7 @@ def try_create_user(
         supabase.table(USERS_TABLE).insert(row).execute()
 
         for service, is_enabled in SERVICES.items():
-            create_service_credential(telegram_user_id,service,is_enabled)
+            create_service_credential(telegram_user_id, service, is_enabled)
 
     except APIError:
         logger.error(f"Error creating user {telegram_user_id}", exc_info=True)

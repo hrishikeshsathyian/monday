@@ -7,9 +7,7 @@ from .monday import run_monday
 
 def main() -> None:
     """Configure the process and start Telegram polling."""
-
     setup_logging()
-    # run_polling manages its own event loop.
     run_monday()
 
 

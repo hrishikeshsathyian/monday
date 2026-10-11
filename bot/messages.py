@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
 MAX_MESSAGE_LENGTH = 4096
 
-# OVERALL MESSAGE SENDER
 
 async def send_message(
     chat_id: str,
@@ -18,6 +17,18 @@ async def send_message(
     reply_markup: InlineKeyboardMarkup | None = None,
     bot: Bot = telegram_bot,
 ) -> None:
+    """Send a message to a Telegram chat with automatic retry on transient failures.
+
+    Retries up to MAX_RETRIES times on flood control (RetryAfter) or timeouts.
+    Other TelegramErrors exit immediately without retry. Uses HTML parse mode,
+    so user-supplied text must be escaped with html.escape().
+
+    Args:
+        chat_id: Telegram chat ID to send to.
+        text: Message text (will be parsed as HTML).
+        reply_markup: Optional inline keyboard.
+        bot: Bot instance to use (defaults to the broadcaster bot).
+    """
     for _ in range(MAX_RETRIES):
         try:
             await bot.send_message(

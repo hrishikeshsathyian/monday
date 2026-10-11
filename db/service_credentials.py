@@ -1,18 +1,39 @@
 import logging
 from calendar import monthrange
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from cryptography.fernet import Fernet
 from postgrest import APIError
 from pydantic import ValidationError
 
 from .client import supabase
 from .models import DbUserService
 from typing import Any
+from typing import TypedDict, cast
 
-from config.settings import SERVICE_CREDENTIALS_TABLE, FERNET_KEY
+from config.settings import SERVICE_CREDENTIALS_TABLE
+from security.credentials import encrypt_secret
 
 logger = logging.getLogger(__name__)
+
+
+from pydantic import BaseModel
+
+
+class HermioneUserResponseRow(BaseModel):
+    telegram_chat_id: int
+
+
+class HermioneUserCredentialRow(BaseModel):
+    encrypted_secret: str
+    users: HermioneUserResponseRow
+
+
+@dataclass(frozen=True)
+class HermioneCredential:
+    telegram_chat_id: int
+    encrypted_secret: str
+
 
 def create_service_credential(
     telegram_user_id: int,
@@ -108,18 +129,9 @@ def set_service_secret(
     service: str,
     secret: str,
 ) -> bool:
-    """Encrypt and store a verified service credential, then enable its service."""
-    logger.info(f"Setting canvas secret to {secret}")
-    encryption_key = FERNET_KEY
-
-    try:
-        encrypted_secret = (
-            Fernet(encryption_key.encode()).encrypt(secret.encode()).decode()
-        )
-        logger.info(f"Setting canvas encrypted secret to {encrypted_secret}")
-
-    except ValueError:
-        logger.error("Error encrypting secret")
+    """Store a verified service credential, then enable its service."""
+    encrypted_secret = encrypt_secret(secret)
+    if encrypted_secret is None:
         return False
 
     now = datetime.now(timezone.utc)
@@ -160,3 +172,38 @@ def set_service_secret(
 
     logger.info("Saved verified %s credential for user %s", service, telegram_user_id)
     return True
+
+
+def get_enabled_hermione_credentials() -> list[HermioneCredential] | None:
+    """Fetch every enabled Hermione credential and its user's private chat in one query."""
+
+    try:
+        response = (
+            supabase.table(SERVICE_CREDENTIALS_TABLE)
+            .select("encrypted_secret, users!inner(telegram_chat_id)")
+            .eq("service", "hermione")
+            .eq("enabled", True)
+            .not_.is_("encrypted_secret", "null")
+            .execute()
+        )
+        credentials = []
+
+        for row in response.data:
+            credential = HermioneUserCredentialRow.model_validate(row)
+            credentials.append(
+                HermioneCredential(
+                    telegram_chat_id=credential.users.telegram_chat_id,
+                    encrypted_secret=credential.encrypted_secret,
+                )
+            )
+
+        return credentials
+
+    except (APIError, KeyError, TypeError):
+        logger.error("Error fetching enabled Hermione credentials", exc_info=True)
+        return None
+    except Exception:
+        logger.error(
+            "Unexpected error fetching enabled Hermione credentials", exc_info=True
+        )
+        return None

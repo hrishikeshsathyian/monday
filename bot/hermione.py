@@ -1,12 +1,10 @@
-"""Canvas-key authentication messages for Hermione."""
-
 import asyncio
 
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from db.service_credentials import set_service_secret
-from hermione.main import canvas_healthcheck
+from hermione.canvas import canvas_healthcheck
 
 AWAITING_CANVAS_API_KEY = 1
 
@@ -14,23 +12,21 @@ AUTH_PROMPT_TEXT = (
     "🔐 <b>Connect Hermione to Canvas</b>\n\n"
     "Paste your Canvas API key to continue.\n\n"
     "<b>Where to find it? </b> \n Canvas → Account → Settings → Approved Integrations → New Access Token\n\n"
-    "<i>Unfortunately, this is the only way 😔 Trust me, I tried.</i>\n\n"
     "Your token is encrypted safely before being stored and is never exposed in plaintext.\n\n"
-    "Use /cancel to back out if you'd rather not continue."
+    "Use /cancel to cancel authentication flow."
 )
 CHECKING_KEY_TEXT = "Validating your Canvas API key…"
 INVALID_KEY_TEXT = (
     "⚠️ <b>That Canvas API key didn't work.</b>\n\n"
-    "Please send a valid key, or use /cancel to stop."
+    "Please try again with another key, or use /cancel to stop the authentication process."
 )
 SERVICE_STATE_FAILED_TEXT = (
     "⚠️ <b>Your Canvas Key was valid but we couldn't save it</b>\n\n"
     "Please try again in a moment."
 )
-ENABLED_TEXT = "<b>Hermione authenticated.</b> Unless set otherwise, your key will be valid for the next 3 months."
-CANCELLED_TEXT = "Hermione setup cancelled."
+ENABLED_TEXT = "<b>Hermione authenticated.</b> Your key will be valid for the next 3 months."
+CANCELLED_TEXT = "Hermione authentication flow cancelled."
 
-## HERMIONE AUTHENTICATION
 
 async def prompt_canvas_auth(update: Update) -> None:
     if update.message is not None:

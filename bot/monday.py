@@ -85,7 +85,7 @@ def format_service_overview(
 
         lines.append("")
 
-    lines.append("Use a command above to toggle a service.")
+    lines.append("Use the commands above to toggle a service.")
 
     return "\n".join(lines)
 

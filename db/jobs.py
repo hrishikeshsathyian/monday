@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 def upsert_jobs(jobs: list[ScraperJob], table_name: str) -> None:
+    for job in jobs:
+        logger.info(job)
     if len(jobs) == 0:
         logger.warning(f"Attempted to insert empty jobs list to {table_name}")
         return

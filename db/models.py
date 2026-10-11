@@ -4,6 +4,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import Optional
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from dataclasses import dataclass
 
 
 class DbJob(BaseModel):
@@ -55,3 +56,9 @@ class DbUserService(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass(frozen=True)
+class HermioneUserCredential:
+    telegram_chat_id: int
+    encrypted_secret: str
