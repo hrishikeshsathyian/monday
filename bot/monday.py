@@ -48,26 +48,23 @@ WELCOME_TEXT = (
 )
 
 SIGNUP_FAILED_TEXT = (
-    "⚠️ <b>Couldn't complete registration</b>\n\n"
+    "😔 <b>Couldn't complete registration</b>\n\n"
     "Something went wrong while setting up your account.\n"
     "Please try again in a moment."
 )
 
 NOT_REGISTERED_TEXT = (
-    "<b>Oops! You're not registered yet.</b>\n\n"
-    "Run /start first to get set up."
+    "<b>Oops! You're not registered yet.</b>\n\n" "Run /start first to get set up."
 )
 
 SERVICE_STATE_FAILED_TEXT = (
-    "⚠️ <b>Couldn't load your services</b>\n\n"
-    "Please try again in a moment."
+    "⚠️ <b>Couldn't load your services</b>\n\n" "Please try again in a moment."
 )
 
 
 def format_service_overview(
     service_credentials: list[DbUserService],
 ) -> str:
-    """Build the Telegram message showing each service's current state."""
 
     lines = [
         "⚙️ <b>Your services</b>",
@@ -79,13 +76,11 @@ def format_service_overview(
 
         if credential.enabled:
             lines.append(
-                f"✅ <b>{service_name}</b>\n"
-                f"   Enabled · /{credential.service}"
+                f"✅ <b>{service_name}</b>\n" f"   Enabled · /{credential.service}"
             )
         else:
             lines.append(
-                f"○ <b>{service_name}</b>\n"
-                f"   Disabled · /{credential.service}"
+                f"○ <b>{service_name}</b>\n" f"   Disabled · /{credential.service}"
             )
 
         lines.append("")
@@ -190,8 +185,6 @@ async def handle_service_toggle(
 ) -> int:
     """Toggle the service corresponding to the command the user sent."""
 
-    del context
-
     if update.message is None:
         return ConversationHandler.END
 
@@ -199,25 +192,18 @@ async def handle_service_toggle(
 
     if user is None:
         await update.message.reply_text(
-                    SERVICE_STATE_FAILED_TEXT,
-                    parse_mode="HTML",
+            SERVICE_STATE_FAILED_TEXT,
+            parse_mode="HTML",
         )
         return ConversationHandler.END
 
-    # Extract "hermione" from commands such as:
-    # /hermione
-    # /hermione@MondayBot
-    command = (
-        (update.message.text or "")
-        .split()[0]
-        .lstrip("/")
-        .split("@")[0]
-    )
+    command = (update.message.text or "").split()[0].lstrip("/").split("@")[0]
 
     service = command
 
-    # Service commands are only available after /start registration.
-    if get_user(user.id) is None:
+    # Check is user is already registered
+    is_user_registered = True if get_user(user.id) else False
+    if not is_user_registered:
         await update.message.reply_text(
             NOT_REGISTERED_TEXT,
             parse_mode="HTML",
@@ -244,6 +230,19 @@ async def handle_service_toggle(
     )
 
     if current_state is None:
+        if not service_credentials:
+            logger.error(
+                "User %s has no service credential rows (requested %s)",
+                user.id,
+                service,
+            )
+        else:
+            logger.error(
+                "User %s has no credential row for service %s (found: %s)",
+                user.id,
+                service,
+                [credential.service for credential in service_credentials],
+            )
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
@@ -302,11 +301,7 @@ async def handle_service_toggle(
 def run_monday() -> None:
     """Create the Telegram application, register handlers and start polling."""
 
-    app = (
-        Application.builder()
-        .token(MONDAY_BOT_TOKEN)
-        .build()
-    )
+    app = Application.builder().token(MONDAY_BOT_TOKEN).build()
 
     # /start handles initial user registration.
     app.add_handler(
@@ -326,7 +321,6 @@ def run_monday() -> None:
                     handle_service_toggle,
                 ),
             ],
-
             # If handle_service_toggle returns AWAITING_CANVAS_API_KEY,
             # the next non-command text message is treated as the API key.
             states={
@@ -337,7 +331,6 @@ def run_monday() -> None:
                     ),
                 ],
             },
-
             # /cancel lets the user exit the Hermione authentication flow.
             fallbacks=[
                 CommandHandler(
