@@ -1,43 +1,26 @@
+"""Settings shared across services (bot, db, security).
+
+Secrets are read from the environment (a local .env file, or GitHub Actions
+secrets in production) and fail fast with KeyError if missing. Settings used by
+only one service live in that service's own config.py instead.
+"""
+
 import os
-from dataclasses import dataclass
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # TELEGRAM CONFIG
+# Bot that posts job listings to the public McQueen channels.
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+# User-facing Monday bot: onboarding, service toggles and direct messages.
 MONDAY_BOT_TOKEN = os.environ["MONDAY_BOT_TOKEN"]
 
-# SCRAPER CONFIG
-CAREERS_GOV_URL = "https://raw.githubusercontent.com/opengovsg/careersgovsg-jobs-data/main/data/job-listings.json"
-CAREERS_GOV_INTERNSHIP_EMPLOYMENT_TYPE = "Internship"
-CAREERS_GOV_INTERNSHIP_EMPLOYMENT_TYPE_CODE = "0005"
-CAREERS_GOV_INDUSTRY_FIELD_CODE_OTHERS = "0025"
-CAREERS_GOV_INDUSTRY_FIELD_CODE_IT = "0017"
-
-# HERMIONE CONFIG
-FERNET_KEY = os.environ["FERNET_KEY"]
+# DATABASE CONFIG
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
 SERVICE_CREDENTIALS_TABLE = "user_services"
-CANVAS_URL = "https://canvas.nus.edu.sg"
 
-
-# MISC CONFIG
-@dataclass(frozen=True)
-class JobChannel:
-    table_name: str
-    is_intern: bool
-    telegram_chat_id: str | None = None
-
-
-JOB_CHANNELS: dict[str, JobChannel] = {
-    "tech_intern": JobChannel(
-        table_name="tech_intern_jobs",
-        telegram_chat_id=os.environ["TELEGRAM_CHAT_ID"],
-        is_intern=True,
-    ),
-    "tech_non_intern": JobChannel(
-        table_name="tech_non_intern_jobs",
-        is_intern=False,
-    ),
-    "non_tech": JobChannel(table_name="non_tech_jobs", is_intern=False),
-}
+# SECURITY CONFIG
+# Fernet key used to encrypt third-party service credentials at rest.
+FERNET_KEY = os.environ["FERNET_KEY"]

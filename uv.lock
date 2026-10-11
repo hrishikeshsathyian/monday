@@ -857,7 +857,6 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "ats-scrapers", extra = ["scrapers"] },
-    { name = "black" },
     { name = "canvasapi" },
     { name = "cryptography" },
     { name = "dotenv" },
@@ -867,10 +866,14 @@ dependencies = [
     { name = "supabase" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "black" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "ats-scrapers", extras = ["scrapers"], specifier = ">=0.3.0" },
-    { name = "black", specifier = ">=26.5.1" },
     { name = "canvasapi", specifier = ">=3.6.0" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
@@ -879,6 +882,9 @@ requires-dist = [
     { name = "requests", specifier = ">=2.34.2" },
     { name = "supabase", specifier = ">=2.31.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "black", specifier = ">=26.5.1" }]
 
 [[package]]
 name = "multidict"

@@ -4,19 +4,13 @@ from dataclasses import dataclass, field
 from ats_scrapers.models import Job
 
 from bot.mcqueen import BATCH_THRESHOLD, send_job, send_job_batch
-from config.settings import JOB_CHANNELS, JobChannel
 from db.jobs import get_seen_global_ids, upsert_jobs
 
+from .config import JOB_CHANNELS, NON_TECH, TECH_INTERN, TECH_NON_INTERN, JobChannel
 from .scrapers.base import ScraperSource
 from .scrapers.source import SOURCES
 
 logger = logging.getLogger(__name__)
-
-# Bucket keys are fixed by the tuple order ScraperSource.scrape() returns, and
-# must stay in sync with the keys of JOB_CHANNELS.
-TECH_INTERN = "tech_intern"
-TECH_NON_INTERN = "tech_non_intern"
-NON_TECH = "non_tech"
 
 
 @dataclass
@@ -83,7 +77,7 @@ class McQueenRunner:
 
         return buckets
 
-    async def _publish(self, channel: JobChannel, jobs: list[Job]) -> None:
+    async def _publish_to_channel(self, channel: JobChannel, jobs: list[Job]) -> None:
         # non_tech has no channel today, so it is stored but never broadcast.
         if not channel.telegram_chat_id:
             return
@@ -109,4 +103,4 @@ class McQueenRunner:
             channel = self.channels[bucket]
             # Persist before publishing so a failed send can't lose the posting.
             upsert_jobs(jobs, channel.table_name)
-            await self._publish(channel, jobs)
+            await self._publish_to_channel(channel, jobs)

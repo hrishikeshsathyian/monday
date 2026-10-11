@@ -1,4 +1,4 @@
-from config.settings import (
+from mcqueen.config import (
     CAREERS_GOV_INDUSTRY_FIELD_CODE_IT,
     CAREERS_GOV_URL,
     CAREERS_GOV_INTERNSHIP_EMPLOYMENT_TYPE_CODE,
