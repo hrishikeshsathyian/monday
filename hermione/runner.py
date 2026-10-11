@@ -21,8 +21,6 @@ class HermioneRunner:
     """Send Canvas updates to every user who has enabled Hermione."""
 
     async def run(self) -> None:
-        """Fetch and send one current-course overview for every enabled user."""
-
         credentials = get_enabled_hermione_credentials()
         if credentials is None:
             return

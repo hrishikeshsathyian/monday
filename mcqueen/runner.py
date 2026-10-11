@@ -77,7 +77,7 @@ class McQueenRunner:
 
         return buckets
 
-    async def _publish(self, channel: JobChannel, jobs: list[Job]) -> None:
+    async def _publish_to_channel(self, channel: JobChannel, jobs: list[Job]) -> None:
         # non_tech has no channel today, so it is stored but never broadcast.
         if not channel.telegram_chat_id:
             return
@@ -103,4 +103,4 @@ class McQueenRunner:
             channel = self.channels[bucket]
             # Persist before publishing so a failed send can't lose the posting.
             upsert_jobs(jobs, channel.table_name)
-            await self._publish(channel, jobs)
+            await self._publish_to_channel(channel, jobs)
