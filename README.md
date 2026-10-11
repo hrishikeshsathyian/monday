@@ -1,18 +1,39 @@
-# monday 📅
+# monday 
+Monday is a <u>**Telegram-based personal assistant for NUS computing students**</u>.
 
-Monday is a **pull only telegram-bot personal management system**. 
+University life is scattered across apps. Coursework lives on Canvas, internship opportunities on LinkedIn, and emails in Outlook, etc. Staying on top of everything means constantly checking each platform and hoping you don't miss anything important.
 
-This project was inspired by the realisation that as a computing student, the problems cardinal to our daily lives have each already been solved, but the answers are fragmented. Canvas for our academic updates and deadlines, LinkedIn for job updates, Outlook for mail, Apple Calendar for reminders and the list goes on.
+Monday brings the updates that matter **straight to your Telegram chat, <u>automatically</u>.** No commands to remember, no apps to keep checking, and no important updates left buried in another platform. Just one chat that keeps you in the loop, so you never have to go looking.
 
-Monday aims to provide users with these fragmented data, without needing the overhead of commands from the user or the need to open another app. They are fed through the users through a **pull only** telegram bot. 
+## Services
 
-### 🚧 Current State
+Monday offers various sub-services, each with its own distinct functionality. Pick your services once in the bot, and Monday handles the rest.
 
-Currently, the live job updates has been updated through a general public telegram channels listed below, while the remaining features are in development
+| Service | What it does |
+|---|---|
+| **McQueen ⚡** | <ins>**Live Alerts**</ins> for SG Computing Internship Listings|
+| **Hermione 📚** | <ins>**Daily**</ins> Canvas reminders for Upcoming Assignments and Quizzes |
 
-### 💬 Telegram Channel Links
-- [SG TECH GRAD POSTINGS](https://t.me/+MewlVkBO5hs3YzU1)
-- [SG TECH INTERN POSTINGS](https://t.me/+OmIAIHXeX1VlNTVl)
+## Overall Architecture
 
-### 🏗️ Current Architecture
-![monday-architecture](docs/architecture.png)
+```mermaid
+flowchart TB
+    core[("<u>**Shared Core**</u><br/>Database · Security · Config")]
+
+    subgraph services["<u>**Services**</u>"]
+        direction LR
+        mcqueen[["McQueen ⚡"]]
+        hermione[["Hermione 📚"]]
+    end
+
+    bot[["Monday Bot"]]
+    users(["Students"])
+
+    core <-.-> mcqueen
+    core <-.-> hermione
+    mcqueen -- Live Internship Listings--> bot
+    hermione -- Daily Canvas Digest --> bot
+    bot <--> users
+```
+
+

@@ -5,7 +5,7 @@ import logging
 from canvasapi import Canvas
 from canvasapi.exceptions import CanvasException
 
-from config.settings import CANVAS_URL
+from .config import CANVAS_URL
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,11 @@
 [project]
 name = "monday"
 version = "0.1.0"
-description = "Add your description here"
+description = "Telegram-based personal assistant that delivers job postings and Canvas updates to students."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "ats-scrapers[scrapers]>=0.3.0",
-    "black>=26.5.1",
     "canvasapi>=3.6.0",
     "cryptography>=50.0.0",
     "dotenv>=0.9.9",
@@ -15,3 +14,14 @@ dependencies = [
     "requests>=2.34.2",
     "supabase>=2.31.0",
 ]
+
+# Development-only tooling (formatters, linters). `uv sync` installs this group
+# locally by default, but it is not a runtime dependency of the services and can
+# be skipped in production with `uv sync --no-dev`.
+[dependency-groups]
+dev = [
+    "black>=26.5.1",
+]
+
+[tool.black]
+target-version = ["py312"]

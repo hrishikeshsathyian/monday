@@ -1,7 +1,7 @@
 from supabase import create_client, Client
-import os
 
-url: str = os.environ["SUPABASE_URL"]
-key: str = os.environ["SUPABASE_SECRET_KEY"]
+from config.settings import SUPABASE_SECRET_KEY, SUPABASE_URL
 
-supabase: Client = create_client(supabase_url=url, supabase_key=key)
+supabase: Client = create_client(
+    supabase_url=SUPABASE_URL, supabase_key=SUPABASE_SECRET_KEY
+)

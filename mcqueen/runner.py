@@ -4,19 +4,13 @@ from dataclasses import dataclass, field
 from ats_scrapers.models import Job
 
 from bot.mcqueen import BATCH_THRESHOLD, send_job, send_job_batch
-from config.settings import JOB_CHANNELS, JobChannel
 from db.jobs import get_seen_global_ids, upsert_jobs
 
+from .config import JOB_CHANNELS, NON_TECH, TECH_INTERN, TECH_NON_INTERN, JobChannel
 from .scrapers.base import ScraperSource
 from .scrapers.source import SOURCES
 
 logger = logging.getLogger(__name__)
-
-# Bucket keys are fixed by the tuple order ScraperSource.scrape() returns, and
-# must stay in sync with the keys of JOB_CHANNELS.
-TECH_INTERN = "tech_intern"
-TECH_NON_INTERN = "tech_non_intern"
-NON_TECH = "non_tech"
 
 
 @dataclass
