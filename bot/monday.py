@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 # Services exposed as Telegram commands.
 # The key is the command name, e.g. /mcqueen or /hermione.
 MONDAY_SERVICES: dict[str, str] = {
-    "mcqueen": "Lightning Fast Live Scraper for SG Computing Internships",
-    "hermione": "Automatic Canvas File Sync & Quiz Deadline Reminder",
+    "mcqueen": "Live Alerts for new SG Computing Internship Listings",
+    "hermione": "Cannvas Daily Digest Upcoming Classes, Quizzes and Assignments",
 }
 
 
@@ -73,15 +73,14 @@ def format_service_overview(
 
     for credential in service_credentials:
         service_name = credential.service.title()
+        description = MONDAY_SERVICES.get(credential.service, "")
+        icon, state = ("✅", "Enabled") if credential.enabled else ("○", "Disabled")
 
-        if credential.enabled:
-            lines.append(
-                f"✅ <b>{service_name}</b>\n" f"   Enabled · /{credential.service}"
-            )
-        else:
-            lines.append(
-                f"○ <b>{service_name}</b>\n" f"   Disabled · /{credential.service}"
-            )
+        lines.append(
+            f"{icon} <b>{service_name}</b>\n"
+            f"   {description}\n"
+            f"   {state} · /{credential.service}"
+        )
 
         lines.append("")
 
