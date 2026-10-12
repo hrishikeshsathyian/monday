@@ -39,7 +39,8 @@ SERVICE_STATE_FAILED_TEXT = (
     "Please try again in a moment."
 )
 ENABLED_TEXT = (
-    "<b>Hermione authenticated.</b> Your key will be valid for the next 3 months."
+    "✅ <b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning!\n\n"
+    "Your Canvas key will be valid for the next 3 months."
 )
 CANCELLED_TEXT = "Hermione authentication flow cancelled."
 
@@ -114,9 +115,9 @@ def format_daily_digest(
     classes: list[Lesson],
 ) -> str:
     greeting = (
-        f"Rise and shine {html.escape(username)} ☀️!"
+        f"Rise and shine {html.escape(username)} ☀️🐓!"
         if username
-        else "Rise and shine ☀️!"
+        else "Rise and shine ☀️🐓!"
     )
     lines = [
         "<b>[Hermione] Daily Digest</b>",

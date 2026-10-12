@@ -28,10 +28,9 @@ logger = logging.getLogger(__name__)
 
 
 # Services exposed as Telegram commands.
-# The key is the command name, e.g. /mcqueen or /hermione.
 MONDAY_SERVICES: dict[str, str] = {
     "mcqueen": "Live Alerts for new SG Computing Internship Listings",
-    "hermione": "Daily Canvas Summary of Upcoming Classes, Quizzes and Assignments",
+    "hermione": "Automatic Daily NUS Canvas Digest: Upcoming Classes and Deadlines",
 }
 
 
@@ -61,6 +60,21 @@ SERVICE_STATE_FAILED_TEXT = (
     "⚠️ <b>Couldn't load your services</b>\n\n" "Please try again in a moment."
 )
 
+# Sent after a toggle so users know what to expect from the service.
+SERVICE_ENABLED_TEXT: dict[str, str] = {
+    "mcqueen": (
+        "<b>McQueen enabled.</b> New internship listings will be sent to you live as they come in." 
+    ),
+    "hermione": (
+        "<b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning!"
+    ),
+}
+
+SERVICE_DISABLED_TEXT: dict[str, str] = {
+    "mcqueen": "<b>McQueen disabled.</b> You won't receive internship listings anymore.",
+    "hermione": "<b>Hermione disabled.</b> You won't receive daily digests anymore.",
+}
+
 
 def format_service_overview(
     service_credentials: list[DbUserService],
@@ -83,7 +97,7 @@ def format_service_overview(
 
         lines.append("")
 
-    lines.append("Use the commands above to toggle a service.")
+    lines.append("Press the commands above to toggle a service on and off.")
 
     return "\n".join(lines)
 
@@ -177,6 +191,25 @@ async def handle_register(
     await send_service_overview(update)
 
 
+async def handle_status(
+    update: Update,
+    _context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Handle /status by sending the user their service overview."""
+
+    if update.message is None or update.effective_user is None:
+        return
+
+    if get_user(update.effective_user.id) is None:
+        await update.message.reply_text(
+            NOT_REGISTERED_TEXT,
+            parse_mode="HTML",
+        )
+        return
+
+    await send_service_overview(update)
+
+
 async def handle_service_toggle(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -264,7 +297,7 @@ async def handle_service_toggle(
         await prompt_canvas_auth(update)
 
         # ConversationHandler will now route the user's next text message
-        # to receive_canvas_api_key().
+        # to handle_canvas_api_key().
         return AWAITING_CANVAS_API_KEY
 
     # Services that do not require authentication can be toggled immediately.
@@ -279,21 +312,28 @@ async def handle_service_toggle(
         )
         return ConversationHandler.END
 
-    # if new_state:
-    #     await update.message.reply_text(
-    #         f"<b>{service.title()}</b> enabled.",
-    #         parse_mode="HTML",
-    #     )
-    # else:
-    #     await update.message.reply_text(
-    #         f"<b>{service.title()}</b> disabled.",
-    #         parse_mode="HTML",
-    #     )
+    await update.message.reply_text(
+        SERVICE_ENABLED_TEXT[service] if new_state else SERVICE_DISABLED_TEXT[service],
+        parse_mode="HTML",
+    )
 
     await send_service_overview(update)
 
     # No further interaction is needed for this command.
     return ConversationHandler.END
+
+
+async def handle_canvas_api_key(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> int:
+    """Run Hermione's key check, then show the overview once the flow ends."""
+
+    next_state = await receive_canvas_api_key(update, context)
+
+    if next_state == ConversationHandler.END:
+        await send_service_overview(update)
+    return next_state
 
 
 def run_monday() -> None:
@@ -306,6 +346,14 @@ def run_monday() -> None:
         CommandHandler(
             "start",
             handle_register,
+        )
+    )
+
+    # /status shows the user which services they have enabled.
+    app.add_handler(
+        CommandHandler(
+            "status",
+            handle_status,
         )
     )
 
@@ -325,7 +373,7 @@ def run_monday() -> None:
                 AWAITING_CANVAS_API_KEY: [
                     MessageHandler(
                         filters.TEXT & ~filters.COMMAND,
-                        receive_canvas_api_key,
+                        handle_canvas_api_key,
                     ),
                 ],
             },
