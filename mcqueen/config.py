@@ -38,6 +38,7 @@ JOB_CHANNELS: dict[str, JobChannel] = {
         telegram_chat_id=TELEGRAM_CHAT_ID,
         is_intern=True,
     ),
+    # Deprecated for now: stored only, not posted to a channel or sent to subscribers.
     TECH_NON_INTERN: JobChannel(
         table_name="tech_non_intern_jobs",
         is_intern=False,

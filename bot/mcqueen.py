@@ -4,14 +4,17 @@ import html
 import textwrap
 
 from ats_scrapers.models import Job
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
+from .client import mcqueen_channel_bot
 from .messages import MAX_MESSAGE_LENGTH, send_message
 
 BATCH_THRESHOLD = 10
 
 
-async def send_job(job: Job, chat_id: str, is_intern: bool) -> bool:
+async def send_job(
+    job: Job, chat_id: str, is_intern: bool, bot: Bot = mcqueen_channel_bot
+) -> bool:
     """Publish one McQueen job alert with an application link; True if it was sent."""
 
     alert_type = "Internship" if is_intern else "Job"
@@ -24,7 +27,9 @@ async def send_job(job: Job, chat_id: str, is_intern: bool) -> bool:
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(text="Apply Now 🚀", url=str(job.url))]]
     )
-    return await send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
+    return await send_message(
+        chat_id=chat_id, text=text, reply_markup=keyboard, bot=bot
+    )
 
 
 def _job_line(job: Job) -> str:
@@ -55,7 +60,9 @@ def _build_batch_messages(jobs: list[Job], alert_type: str) -> list[str]:
     return messages
 
 
-async def send_job_batch(jobs: list[Job], chat_id: str, is_intern: bool) -> bool:
+async def send_job_batch(
+    jobs: list[Job], chat_id: str, is_intern: bool, bot: Bot = mcqueen_channel_bot
+) -> bool:
     """Publish McQueen job alerts in Telegram-sized batches; True if every batch was sent."""
 
     if not jobs:
@@ -64,7 +71,7 @@ async def send_job_batch(jobs: list[Job], chat_id: str, is_intern: bool) -> bool
     alert_type = "Internship" if is_intern else "Job"
     # Every batch is attempted even if an earlier one fails.
     results = [
-        await send_message(chat_id=chat_id, text=text)
+        await send_message(chat_id=chat_id, text=text, bot=bot)
         for text in _build_batch_messages(jobs, alert_type)
     ]
     return all(results)

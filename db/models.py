@@ -62,14 +62,19 @@ class DbUserService(BaseModel):
     updated_at: datetime
 
 
-class HermioneUserResponseRow(BaseModel):
+# The users columns joined onto a user_services query; shared by McQueen and Hermione.
+class UserChatRow(BaseModel):
     telegram_chat_id: int
     telegram_username: str | None
 
 
+class ServiceUserRow(BaseModel):
+    users: UserChatRow
+
+
 class HermioneUserCredentialRow(BaseModel):
     encrypted_secret: str
-    users: HermioneUserResponseRow
+    users: UserChatRow
 
 
 @dataclass(frozen=True)
@@ -77,3 +82,9 @@ class HermioneUserCredential:
     telegram_chat_id: int
     telegram_username: str | None
     encrypted_secret: str
+
+
+@dataclass(frozen=True)
+class ServiceUser:
+    telegram_chat_id: int
+    telegram_username: str | None

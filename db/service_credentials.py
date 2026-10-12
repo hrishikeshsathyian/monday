@@ -10,7 +10,13 @@ from config.settings import SERVICE_CREDENTIALS_TABLE
 from security.credentials import encrypt_secret
 
 from .client import supabase
-from .models import DbUserService, HermioneUserCredential, HermioneUserCredentialRow
+from .models import (
+    DbUserService,
+    HermioneUserCredential,
+    HermioneUserCredentialRow,
+    ServiceUser,
+    ServiceUserRow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +158,40 @@ def set_service_secret(
 
     logger.info("Saved verified %s credential for user %s", service, telegram_user_id)
     return True
+
+
+def get_enabled_service_users(service: str) -> list[ServiceUser] | None:
+    """Fetch every user with this service enabled, plus their private chat, in one query."""
+
+    try:
+        response = (
+            supabase.table(SERVICE_CREDENTIALS_TABLE)
+            .select("users!inner(telegram_chat_id, telegram_username)")
+            .eq("service", service)
+            .eq("enabled", True)
+            .execute()
+        )
+        users = []
+
+        for row in response.data:
+            user = ServiceUserRow.model_validate(row).users
+            users.append(
+                ServiceUser(
+                    telegram_chat_id=user.telegram_chat_id,
+                    telegram_username=user.telegram_username,
+                )
+            )
+
+        return users
+
+    except (APIError, ValidationError):
+        logger.error(f"Error fetching users with {service} enabled", exc_info=True)
+        return None
+    except Exception:
+        logger.error(
+            f"Unexpected error fetching users with {service} enabled", exc_info=True
+        )
+        return None
 
 
 def get_authenticated_hermione_users() -> list[HermioneUserCredential] | None:

@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # The key is the command name, e.g. /mcqueen or /hermione.
 MONDAY_SERVICES: dict[str, str] = {
     "mcqueen": "Live Alerts for new SG Computing Internship Listings",
-    "hermione": "Canvas Daily Digest Upcoming Classes, Quizzes and Assignments",
+    "hermione": "Daily Canvas Summary of Upcoming Classes, Quizzes and Assignments",
 }
 
 
