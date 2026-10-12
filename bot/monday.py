@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # The key is the command name, e.g. /mcqueen or /hermione.
 MONDAY_SERVICES: dict[str, str] = {
     "mcqueen": "Live Alerts for new SG Computing Internship Listings",
-    "hermione": "Cannvas Daily Digest Upcoming Classes, Quizzes and Assignments",
+    "hermione": "Canvas Daily Digest Upcoming Classes, Quizzes and Assignments",
 }
 
 
@@ -77,8 +77,7 @@ def format_service_overview(
         icon, state = ("✅", "Enabled") if credential.enabled else ("○", "Disabled")
 
         lines.append(
-            f"{icon} <b>{service_name}</b>\n"
-            f"   {description}\n"
+            f"{icon} <b>{service_name}</b> - {description}\n"
             f"   {state} · /{credential.service}"
         )
 
@@ -280,16 +279,16 @@ async def handle_service_toggle(
         )
         return ConversationHandler.END
 
-    if new_state:
-        await update.message.reply_text(
-            f"<b>{service.title()}</b> enabled.",
-            parse_mode="HTML",
-        )
-    else:
-        await update.message.reply_text(
-            f"<b>{service.title()}</b> disabled.",
-            parse_mode="HTML",
-        )
+    # if new_state:
+    #     await update.message.reply_text(
+    #         f"<b>{service.title()}</b> enabled.",
+    #         parse_mode="HTML",
+    #     )
+    # else:
+    #     await update.message.reply_text(
+    #         f"<b>{service.title()}</b> disabled.",
+    #         parse_mode="HTML",
+    #     )
 
     await send_service_overview(update)
 
