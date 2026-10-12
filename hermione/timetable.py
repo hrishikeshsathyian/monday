@@ -7,7 +7,6 @@ from .config import SECTION_LESSON_TYPES
 from .nusmods import Lesson, get_module_lessons
 
 
-
 def is_weekday(day: date) -> bool:
     return day.weekday() < 5
 
@@ -56,7 +55,7 @@ def _parse_section(section: str) -> tuple[str, str] | None:
     #   2. the class number, optionally prefixed by one more letter, e.g. "02" or "D38"
     # So "T02" -> ("T", "02") and "TD38" -> ("T", "D38").
     SECTION_PATTERN = re.compile(r"([A-Z])([A-Z]?\d+)")
-    
+
     match = SECTION_PATTERN.fullmatch(section)
     if match is None or match[1] not in SECTION_LESSON_TYPES:
         return None

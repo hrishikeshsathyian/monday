@@ -16,7 +16,6 @@ CAREERS_GOV_INTERNSHIP_EMPLOYMENT_TYPE_CODE = "0005"
 CAREERS_GOV_INDUSTRY_FIELD_CODE_IT = "0017"
 
 # JOB CHANNELS
-# Bucket keys, in the tuple order ScraperSource.scrape() returns them.
 TECH_INTERN = "tech_intern"
 TECH_NON_INTERN = "tech_non_intern"
 NON_TECH = "non_tech"

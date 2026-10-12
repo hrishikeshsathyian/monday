@@ -33,7 +33,8 @@ def get_module_lessons(module_code: str) -> tuple[Lesson, ...] | None:
 
         # A module not offered this semester genuinely has no lessons.
         timetable = next(
-            (data["timetable"] for data in semesters if data["semester"] == SEMESTER), []
+            (data["timetable"] for data in semesters if data["semester"] == SEMESTER),
+            [],
         )
         return tuple(
             Lesson(

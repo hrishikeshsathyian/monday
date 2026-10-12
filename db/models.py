@@ -1,10 +1,9 @@
 from ats_scrapers.models import Job as ScraperJob
 from ats_scrapers.models import EmploymentType
-from pydantic import BaseModel, HttpUrl
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, HttpUrl
 from typing import Optional
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from dataclasses import dataclass
 
 """
     Anything prefixed with Db in this file should ALWAYS mirror exactly what exists in the database schema
@@ -62,29 +61,26 @@ class DbUserService(BaseModel):
     updated_at: datetime
 
 
-# The users columns joined onto a user_services query; shared by McQueen and Hermione.
-class UserChatRow(BaseModel):
-    telegram_chat_id: int
-    telegram_username: str | None
+# Query results of user_services joined with users, not mirrors of a table.
+# Supabase nests the joined columns under "users"; AliasPath reads them from there.
+class McQueenUser(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    telegram_chat_id: int = Field(
+        validation_alias=AliasPath("users", "telegram_chat_id")
+    )
+    telegram_username: str | None = Field(
+        validation_alias=AliasPath("users", "telegram_username")
+    )
 
 
-class ServiceUserRow(BaseModel):
-    users: UserChatRow
+class HermioneUser(BaseModel):
+    model_config = ConfigDict(frozen=True)
 
-
-class HermioneUserCredentialRow(BaseModel):
+    telegram_chat_id: int = Field(
+        validation_alias=AliasPath("users", "telegram_chat_id")
+    )
+    telegram_username: str | None = Field(
+        validation_alias=AliasPath("users", "telegram_username")
+    )
     encrypted_secret: str
-    users: UserChatRow
-
-
-@dataclass(frozen=True)
-class HermioneUserCredential:
-    telegram_chat_id: int
-    telegram_username: str | None
-    encrypted_secret: str
-
-
-@dataclass(frozen=True)
-class ServiceUser:
-    telegram_chat_id: int
-    telegram_username: str | None

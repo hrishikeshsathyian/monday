@@ -8,8 +8,8 @@ from bot.client import mcqueen_channel_bot, monday_bot
 from bot.mcqueen import BATCH_THRESHOLD, send_job, send_job_batch
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
 from db.jobs import get_seen_global_ids, upsert_jobs
-from db.models import ServiceUser
-from db.service_credentials import get_enabled_service_users
+from db.models import McQueenUser
+from db.service_credentials import get_mcqueen_users
 
 from .config import JOB_CHANNELS, NON_TECH, TECH_INTERN, TECH_NON_INTERN, JobChannel
 from .scrapers.base import ScraperSource
@@ -27,7 +27,7 @@ class McQueenRunner:
 
     @classmethod
     def from_source_names(cls, source_names: list[str] | None) -> "McQueenRunner":
-        # None means every configured source.
+        # None means we want every configured source in this instance of the runner.
         if source_names is None:
             return cls()
         return cls(
@@ -35,15 +35,18 @@ class McQueenRunner:
         )
 
     def _load_seen_ids(self) -> set[str] | None:
+        ''' Get all unique ids of listings already seen.'''
         seen_ids: set[str] = set()
         for channel in self.channels.values():
             channel_ids = get_seen_global_ids(channel.table_name)
             if channel_ids is None:
+                # None is an error outcome, bubbled up to the next caller to log and handle
                 return None
             seen_ids |= channel_ids
         return seen_ids
 
     def _scrape(self, seen_ids: set[str]) -> dict[str, list[Job]]:
+        """ Returns 3 buckets of NEW listings for TECH_INTERN, TECH_NON_INTERN and NON_TECH respectively """
         buckets: dict[str, list[Job]] = {
             TECH_INTERN: [],
             TECH_NON_INTERN: [],
@@ -55,15 +58,18 @@ class McQueenRunner:
             tech_intern_jobs, tech_non_intern_jobs, non_tech_jobs = source.scrape(
                 seen_ids
             )
+            
             buckets[TECH_INTERN].extend(tech_intern_jobs)
             buckets[TECH_NON_INTERN].extend(tech_non_intern_jobs)
             buckets[NON_TECH].extend(non_tech_jobs)
+            
             logger.info(f"""
-        Found {len(tech_intern_jobs)} NEW TECH INTERN POSTINGS
-        Found {len(tech_non_intern_jobs)} NEW TECH NON INTERN POSTINGS
-        Found {len(non_tech_jobs)} NEW NON TECH NON INTERN POSTINGS
+        Found {len(tech_intern_jobs)} NEW TECH INTERN POSTINGS in {source.name}
+        Found {len(tech_non_intern_jobs)} NEW TECH NON INTERN POSTINGS in {source.name}
+        Found {len(non_tech_jobs)} NEW NON TECH NON INTERN POSTINGS in {source.name}
         """)
 
+        # fallback deduplicate in-case an ATL lists the same entry twice, prevents DB upsertion error
         for bucket, jobs in buckets.items():
             unique_jobs: dict[str, Job] = {}
             duplicate_ids: set[str] = set()
@@ -109,7 +115,7 @@ class McQueenRunner:
         return all_sent
 
     async def _publish_to_channel(self, channel: JobChannel, jobs: list[Job]) -> None:
-        # Only tech_intern has a channel; the other buckets are stored but never posted.
+        # Defensive fall back, we should already be calling this for TECH_INTERN channel which is the only one with a telegram_chat_id
         if not channel.telegram_chat_id:
             return
 
@@ -124,11 +130,12 @@ class McQueenRunner:
                 channel.table_name,
             )
 
-    async def _send_internships_to_subscribers(
-        self, jobs: list[Job], subscribers: list[ServiceUser]
+    async def _publish_to_monday(
+        self, jobs: list[Job], mcqueen_users: list[McQueenUser]
     ) -> None:
+        
         sent = 0
-        for user in subscribers:
+        for user in mcqueen_users:
             # Subscribers chat with the Monday bot, so it has to be the one that DMs them.
             if await self._send_jobs(
                 jobs, str(user.telegram_chat_id), is_intern=True, bot=monday_bot
@@ -145,17 +152,19 @@ class McQueenRunner:
             "Sent %d internship(s) to %d/%d McQueen subscribers",
             len(jobs),
             sent,
-            len(subscribers),
+            len(mcqueen_users),
         )
 
-    def _load_subscribers(self) -> list[ServiceUser] | None:
-        subscribers = get_enabled_service_users("mcqueen")
+    def _load_subscribers(self) -> list[McQueenUser] | None:
+        subscribers = get_mcqueen_users()
         if subscribers is None:
             logger.error(
                 "Not sending internships to McQueen subscribers this run: could not "
-                "load them; internships will still be posted to the channel"
+                "load them; internships will still be attempted to be posted to the channel"
             )
             return None
+        # in dev environments, restricting to only sending to developers via Dev Monday Bot. If not Dev Monday Bot will attempt to send to all users
+        # TODO : this will be resolved once we have a separate dev database
         if IS_DEV:
             subscribers = [
                 user
@@ -188,9 +197,13 @@ class McQueenRunner:
                     channel.table_name,
                 )
                 continue
-            await self._publish_to_channel(channel, jobs)
+            
+            if bucket == TECH_INTERN: 
+                await self._publish_to_channel(channel, jobs)
+            else:
+                logger.info(f"Skipping publishing to {bucket} channel since it is not live..")
 
             # Subscribers get internships only; the non-intern channel is deprecated for now.
             # None means loading them failed, which _load_subscribers has already logged.
             if bucket == TECH_INTERN and subscribers is not None:
-                await self._send_internships_to_subscribers(jobs, subscribers)
+                await self._publish_to_monday(jobs, subscribers)

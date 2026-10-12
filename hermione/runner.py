@@ -6,7 +6,7 @@ from datetime import datetime
 
 from bot.hermione import send_daily_digest
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
-from db.models import HermioneUserCredential
+from db.models import HermioneUser
 from db.service_credentials import get_authenticated_hermione_users
 from security.credentials import decrypt_secret
 
@@ -28,10 +28,14 @@ class HermioneRunner:
 
         users = get_authenticated_hermione_users()
         if users is None:
-            logger.error("Skipping Hermione digests; error while loading authenticated users")
+            logger.error(
+                "Skipping Hermione digests; error while loading authenticated users"
+            )
             return
         if IS_DEV:
-            users = [user for user in users if user.telegram_chat_id == HERMIONE_DEV_CHAT_ID]
+            users = [
+                user for user in users if user.telegram_chat_id == HERMIONE_DEV_CHAT_ID
+            ]
         if not users:
             logger.info("No users with Hermione enabled; no digests to send")
             return
@@ -40,7 +44,7 @@ class HermioneRunner:
         # a free slot, and a finished user frees its slot for the next one.
         slots = asyncio.Semaphore(MAX_CONCURRENT_USERS)
 
-        async def send_when_slot_free(user: HermioneUserCredential) -> bool:
+        async def send_when_slot_free(user: HermioneUser) -> bool:
             async with slots:
                 return await self._send_digest(user)
 
@@ -59,7 +63,7 @@ class HermioneRunner:
         sent = sum(result is True for result in results)
         logger.info("Sent Hermione digests to %d/%d users", sent, len(users))
 
-    async def _send_digest(self, user: HermioneUserCredential) -> bool:
+    async def _send_digest(self, user: HermioneUser) -> bool:
         """Send one user's digest; True only if Telegram accepted it."""
 
         api_key = decrypt_secret(user.encrypted_secret)
@@ -110,7 +114,7 @@ class HermioneRunner:
     async def _get_todays_classes(self, api_key: str) -> list[Lesson] | None:
         today = datetime.now(DISPLAY_TIMEZONE).date()
 
-        # early termination for weekend, assume there are no classes 
+        # early termination for weekend, assume there are no classes
         if not is_weekday(today):
             return []
 

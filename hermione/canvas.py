@@ -48,7 +48,9 @@ def get_upcoming_assignments(api_key: str) -> list[UpcomingAssignment] | None:
 
     try:
         upcoming = []
-        for course in Canvas(CANVAS_URL, api_key).get_courses(enrollment_state="active"):
+        for course in Canvas(CANVAS_URL, api_key).get_courses(
+            enrollment_state="active"
+        ):
             # The "future" bucket excludes overdue work but still includes undated
             # items, which are filtered out below.
             for assignment in course.get_assignments(

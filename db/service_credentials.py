@@ -12,10 +12,8 @@ from security.credentials import encrypt_secret
 from .client import supabase
 from .models import (
     DbUserService,
-    HermioneUserCredential,
-    HermioneUserCredentialRow,
-    ServiceUser,
-    ServiceUserRow,
+    HermioneUser,
+    McQueenUser,
 )
 
 logger = logging.getLogger(__name__)
@@ -160,41 +158,31 @@ def set_service_secret(
     return True
 
 
-def get_enabled_service_users(service: str) -> list[ServiceUser] | None:
-    """Fetch every user with this service enabled, plus their private chat, in one query."""
+def get_mcqueen_users() -> list[McQueenUser] | None:
+    """Fetch every user with McQueen enabled, plus their private chat, in one query."""
 
     try:
         response = (
             supabase.table(SERVICE_CREDENTIALS_TABLE)
             .select("users!inner(telegram_chat_id, telegram_username)")
-            .eq("service", service)
+            .eq("service", "mcqueen")
             .eq("enabled", True)
             .execute()
         )
-        users = []
-
-        for row in response.data:
-            user = ServiceUserRow.model_validate(row).users
-            users.append(
-                ServiceUser(
-                    telegram_chat_id=user.telegram_chat_id,
-                    telegram_username=user.telegram_username,
-                )
-            )
-
-        return users
+        # Each row looks like {"users": {"telegram_chat_id": 123, "telegram_username": "foo"}}
+        return [McQueenUser.model_validate(row) for row in response.data]
 
     except (APIError, ValidationError):
-        logger.error(f"Error fetching users with {service} enabled", exc_info=True)
+        logger.error("Error fetching users with McQueen enabled", exc_info=True)
         return None
     except Exception:
         logger.error(
-            f"Unexpected error fetching users with {service} enabled", exc_info=True
+            "Unexpected error fetching users with McQueen enabled", exc_info=True
         )
         return None
 
 
-def get_authenticated_hermione_users() -> list[HermioneUserCredential] | None:
+def get_authenticated_hermione_users() -> list[HermioneUser] | None:
     """Fetch every user with Hermione enabled and a stored Canvas key, plus their private chat, in one query."""
 
     try:
@@ -208,19 +196,9 @@ def get_authenticated_hermione_users() -> list[HermioneUserCredential] | None:
             .not_.is_("encrypted_secret", "null")
             .execute()
         )
-        credentials = []
-
-        for row in response.data:
-            credential = HermioneUserCredentialRow.model_validate(row)
-            credentials.append(
-                HermioneUserCredential(
-                    telegram_chat_id=credential.users.telegram_chat_id,
-                    telegram_username=credential.users.telegram_username,
-                    encrypted_secret=credential.encrypted_secret,
-                )
-            )
-
-        return credentials
+        # Each row looks like
+        # {"encrypted_secret": "...", "users": {"telegram_chat_id": 123, "telegram_username": "foo"}}
+        return [HermioneUser.model_validate(row) for row in response.data]
 
     except (APIError, ValidationError):
         logger.error("Error fetching enabled Hermione credentials", exc_info=True)

@@ -17,7 +17,7 @@ if ENV not in ("dev", "prod"):
     raise ValueError(f"ENV must be 'dev' or 'prod', got {ENV!r}")
 IS_DEV = ENV == "dev"
 
-# only user a dev run sends messages to 
+# only user a dev run sends messages to
 _hermione_dev_chat_id = os.environ.get("HERMIONE_DEV_CHAT_ID")
 HERMIONE_DEV_CHAT_ID = int(_hermione_dev_chat_id) if _hermione_dev_chat_id else None
 

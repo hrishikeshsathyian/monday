@@ -10,8 +10,6 @@ from .scrapers.source import SOURCES
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse source-selection options for a McQueen run."""
-
     available_sources = [source.name for source in SOURCES]
     parser = argparse.ArgumentParser(
         description="McQueen — scrape job sources and publish new postings."
@@ -33,8 +31,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Configure the process and run the McQueen pipeline once."""
-
     args = parse_args()
     setup_logging()
     asyncio.run(McQueenRunner.from_source_names(args.sources).run())
