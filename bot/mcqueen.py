@@ -11,8 +11,8 @@ from .messages import MAX_MESSAGE_LENGTH, send_message
 BATCH_THRESHOLD = 10
 
 
-async def send_job(job: Job, chat_id: str, is_intern: bool) -> None:
-    """Publish one McQueen job alert with an application link."""
+async def send_job(job: Job, chat_id: str, is_intern: bool) -> bool:
+    """Publish one McQueen job alert with an application link; True if it was sent."""
 
     alert_type = "Internship" if is_intern else "Job"
     text = (
@@ -24,7 +24,7 @@ async def send_job(job: Job, chat_id: str, is_intern: bool) -> None:
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(text="Apply Now 🚀", url=str(job.url))]]
     )
-    await send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
+    return await send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
 
 
 def _job_line(job: Job) -> str:
@@ -55,12 +55,16 @@ def _build_batch_messages(jobs: list[Job], alert_type: str) -> list[str]:
     return messages
 
 
-async def send_job_batch(jobs: list[Job], chat_id: str, is_intern: bool) -> None:
-    """Publish McQueen job alerts in Telegram-sized batches."""
+async def send_job_batch(jobs: list[Job], chat_id: str, is_intern: bool) -> bool:
+    """Publish McQueen job alerts in Telegram-sized batches; True if every batch was sent."""
 
     if not jobs:
-        return
+        return True
 
     alert_type = "Internship" if is_intern else "Job"
-    for text in _build_batch_messages(jobs, alert_type):
+    # Every batch is attempted even if an earlier one fails.
+    results = [
         await send_message(chat_id=chat_id, text=text)
+        for text in _build_batch_messages(jobs, alert_type)
+    ]
+    return all(results)

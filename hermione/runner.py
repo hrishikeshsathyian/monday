@@ -1,55 +1,118 @@
 """Scheduled-work runner for Hermione."""
 
 import asyncio
-import html
 import logging
+from datetime import datetime
 
-from bot.client import mondaybot
-from bot.messages import send_message
-from db.service_credentials import (
-    HermioneCredential,
-    get_enabled_hermione_credentials,
-)
+from bot.hermione import send_daily_digest
+from db.models import HermioneUserCredential
+from db.service_credentials import get_authenticated_hermione_users
 from security.credentials import decrypt_secret
 
-from .canvas import get_active_course_names
+from .canvas import get_class_groups, get_upcoming_assignments
+from .config import DISPLAY_TIMEZONE, MAX_CONCURRENT_USERS
+from .nusmods import Lesson, get_module_lessons
+from .timetable import get_classes_on, is_weekday
 
 logger = logging.getLogger(__name__)
 
 
 class HermioneRunner:
-    """Send Canvas updates to every user who has enabled Hermione."""
+    """Send the daily digest to every authenticated Hermione user."""
 
     async def run(self) -> None:
-        credentials = get_enabled_hermione_credentials()
-        if credentials is None:
+        # NUSMods lookups are cached per process; start each run fresh so a failed or
+        # outdated timetable from an earlier run in the same process isn't reused.
+        get_module_lessons.cache_clear()
+
+        users = get_authenticated_hermione_users()
+        if users is None:
+            logger.error("Skipping Hermione digests; error while loading authenticated users")
+            return
+        if not users:
+            logger.info("No users with Hermione enabled; no digests to send")
             return
 
-        logger.info("Running Hermione for %d enabled user(s)", len(credentials))
-        for credential in credentials:
-            await self._send_course_overview(credential)
+        # Every user is processed, MAX_CONCURRENT_USERS at a time: each task waits for
+        # a free slot, and a finished user frees its slot for the next one.
+        slots = asyncio.Semaphore(MAX_CONCURRENT_USERS)
 
-    async def _send_course_overview(self, credential: HermioneCredential) -> None:
-        api_key = decrypt_secret(credential.encrypted_secret)
-        if api_key is None:
-            return
+        async def send_when_slot_free(user: HermioneUserCredential) -> bool:
+            async with slots:
+                return await self._send_digest(user)
 
-        course_names = await asyncio.to_thread(get_active_course_names, api_key)
-        if course_names is None:
-            return
-
-        await send_message(
-            chat_id=str(credential.telegram_chat_id),
-            text=_format_course_overview(course_names),
-            bot=mondaybot,
+        results = await asyncio.gather(
+            *(send_when_slot_free(user) for user in users), return_exceptions=True
         )
 
+        for user, result in zip(users, results):
+            if isinstance(result, Exception):
+                logger.error(
+                    "Unexpected failure sending Hermione digest to chat %s",
+                    user.telegram_chat_id,
+                    exc_info=result,
+                )
 
-def _format_course_overview(course_names: list[str]) -> str:
-    """Build the private Telegram message listing a user's active Canvas courses."""
+        sent = sum(result is True for result in results)
+        logger.info("Sent Hermione digests to %d/%d users", sent, len(users))
 
-    if not course_names:
-        return "📚 <b>Your current Canvas courses</b>\n\nNo active courses found."
+    async def _send_digest(self, user: HermioneUserCredential) -> bool:
+        """Send one user's digest; True only if Telegram accepted it."""
 
-    courses = "\n".join(f"• {html.escape(course_name)}" for course_name in course_names)
-    return f"📚 <b>Your current Canvas courses</b>\n\n{courses}"
+        api_key = decrypt_secret(user.encrypted_secret)
+        if api_key is None:
+            logger.error(
+                "Skipping Hermione digest for chat %s (@%s): could not decrypt their credential",
+                user.telegram_chat_id,
+                user.telegram_username,
+            )
+            return False
+
+        # canvasapi is blocking; a worker thread keeps the event loop free for other users.
+        assignments = await asyncio.to_thread(get_upcoming_assignments, api_key)
+        if assignments is None:
+            logger.error(
+                "Skipping Hermione digest for chat %s (@%s): Error loading their assignments",
+                user.telegram_chat_id,
+                user.telegram_username,
+            )
+            return False
+
+        classes = await self._get_todays_classes(api_key)
+        if classes is None:
+            logger.error(
+                "Skipping Hermione digest for chat %s (@%s): could not load their classes",
+                user.telegram_chat_id,
+                user.telegram_username,
+            )
+            return False
+
+        if not await send_daily_digest(
+            user.telegram_chat_id, user.telegram_username, assignments, classes
+        ):
+            logger.error(
+                "Failed to send Hermione digest to chat %s (@%s)",
+                user.telegram_chat_id,
+                user.telegram_username,
+            )
+            return False
+
+        logger.info(
+            "Sent Hermione digest to chat %s (@%s)",
+            user.telegram_chat_id,
+            user.telegram_username,
+        )
+        return True
+
+    async def _get_todays_classes(self, api_key: str) -> list[Lesson] | None:
+        today = datetime.now(DISPLAY_TIMEZONE).date()
+
+        # early termination for weekend, assume there are no classes 
+        if not is_weekday(today):
+            return []
+
+        class_groups = await asyncio.to_thread(get_class_groups, api_key)
+        if class_groups is None:
+            return None
+
+        return await asyncio.to_thread(get_classes_on, today, class_groups)

@@ -29,10 +29,13 @@ class McQueenRunner:
             sources=[source for source in SOURCES if source.name in source_names]
         )
 
-    def _load_seen_ids(self) -> set[str]:
+    def _load_seen_ids(self) -> set[str] | None:
         seen_ids: set[str] = set()
         for channel in self.channels.values():
-            seen_ids |= get_seen_global_ids(channel.table_name)
+            channel_ids = get_seen_global_ids(channel.table_name)
+            if channel_ids is None:
+                return None
+            seen_ids |= channel_ids
         return seen_ids
 
     def _scrape(self, seen_ids: set[str]) -> dict[str, list[Job]]:
@@ -83,18 +86,40 @@ class McQueenRunner:
             return
 
         if len(jobs) > BATCH_THRESHOLD:
-            await send_job_batch(
+            if not await send_job_batch(
                 jobs, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
-            )
+            ):
+                logger.error(
+                    "Failed to publish part of a %d-job batch to %s",
+                    len(jobs),
+                    channel.table_name,
+                )
+                return
+            logger.info("Published %d job(s) to %s as a batch", len(jobs), channel.table_name)
             return
 
+        sent = 0
         for job in jobs:
-            await send_job(
+            if await send_job(
                 job, chat_id=channel.telegram_chat_id, is_intern=channel.is_intern
-            )
+            ):
+                sent += 1
+            else:
+                logger.error(
+                    "Failed to publish %s (%s at %s) to %s",
+                    job.global_id,
+                    job.title,
+                    job.company,
+                    channel.table_name,
+                )
+        logger.info("Published %d/%d job(s) to %s", sent, len(jobs), channel.table_name)
 
     async def run(self) -> None:
         seen_ids = self._load_seen_ids()
+        if seen_ids is None:
+            # Without the seen IDs every job looks new and would be re-posted.
+            logger.error("Skipping McQueen run: could not load already-seen jobs")
+            return
 
         for bucket, jobs in self._scrape(seen_ids).items():
             if not jobs:
@@ -102,5 +127,13 @@ class McQueenRunner:
 
             channel = self.channels[bucket]
             # Persist before publishing so a failed send can't lose the posting.
-            upsert_jobs(jobs, channel.table_name)
+            if not upsert_jobs(jobs, channel.table_name):
+                # Unsaved jobs still look new next run; publishing now would post them twice.
+                logger.error(
+                    "Not publishing %d %s job(s): could not save them to %s",
+                    len(jobs),
+                    bucket,
+                    channel.table_name,
+                )
+                continue
             await self._publish_to_channel(channel, jobs)

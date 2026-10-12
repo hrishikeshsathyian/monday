@@ -13,3 +13,6 @@ def setup_logging() -> None:
     # httpx/httpcore log every request used by supabase and python-telegram-bot, too noisy
     logging.getLogger("httpx").disabled = True
     logging.getLogger("httpcore").disabled = True
+
+    # canvasapi logs every request and response at INFO; keep only its warnings and errors.
+    logging.getLogger("canvasapi").setLevel(logging.WARNING)

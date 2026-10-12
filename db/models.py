@@ -6,6 +6,10 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 
+"""
+    Anything prefixed with Db in this file should ALWAYS mirror exactly what exists in the database schema
+"""
+
 
 class DbJob(BaseModel):
     global_id: str
@@ -58,7 +62,18 @@ class DbUserService(BaseModel):
     updated_at: datetime
 
 
+class HermioneUserResponseRow(BaseModel):
+    telegram_chat_id: int
+    telegram_username: str | None
+
+
+class HermioneUserCredentialRow(BaseModel):
+    encrypted_secret: str
+    users: HermioneUserResponseRow
+
+
 @dataclass(frozen=True)
 class HermioneUserCredential:
     telegram_chat_id: int
+    telegram_username: str | None
     encrypted_secret: str

@@ -1,38 +1,18 @@
 import logging
 from calendar import monthrange
-from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 from postgrest import APIError
 from pydantic import ValidationError
 
-from .client import supabase
-from .models import DbUserService
-from typing import Any
-from typing import TypedDict, cast
-
 from config.settings import SERVICE_CREDENTIALS_TABLE
 from security.credentials import encrypt_secret
 
+from .client import supabase
+from .models import DbUserService, HermioneUserCredential, HermioneUserCredentialRow
+
 logger = logging.getLogger(__name__)
-
-
-from pydantic import BaseModel
-
-
-class HermioneUserResponseRow(BaseModel):
-    telegram_chat_id: int
-
-
-class HermioneUserCredentialRow(BaseModel):
-    encrypted_secret: str
-    users: HermioneUserResponseRow
-
-
-@dataclass(frozen=True)
-class HermioneCredential:
-    telegram_chat_id: int
-    encrypted_secret: str
 
 
 def create_service_credential(
@@ -174,13 +154,15 @@ def set_service_secret(
     return True
 
 
-def get_enabled_hermione_credentials() -> list[HermioneCredential] | None:
-    """Fetch every enabled Hermione credential and its user's private chat in one query."""
+def get_authenticated_hermione_users() -> list[HermioneUserCredential] | None:
+    """Fetch every user with Hermione enabled and a stored Canvas key, plus their private chat, in one query."""
 
     try:
         response = (
             supabase.table(SERVICE_CREDENTIALS_TABLE)
-            .select("encrypted_secret, users!inner(telegram_chat_id)")
+            .select(
+                "encrypted_secret, users!inner(telegram_chat_id, telegram_username)"
+            )
             .eq("service", "hermione")
             .eq("enabled", True)
             .not_.is_("encrypted_secret", "null")
@@ -191,15 +173,16 @@ def get_enabled_hermione_credentials() -> list[HermioneCredential] | None:
         for row in response.data:
             credential = HermioneUserCredentialRow.model_validate(row)
             credentials.append(
-                HermioneCredential(
+                HermioneUserCredential(
                     telegram_chat_id=credential.users.telegram_chat_id,
+                    telegram_username=credential.users.telegram_username,
                     encrypted_secret=credential.encrypted_secret,
                 )
             )
 
         return credentials
 
-    except (APIError, KeyError, TypeError):
+    except (APIError, ValidationError):
         logger.error("Error fetching enabled Hermione credentials", exc_info=True)
         return None
     except Exception:

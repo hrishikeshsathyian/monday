@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # TELEGRAM CONFIG
-# Bot that posts job listings to the public McQueen channels.
+# Token for mcqueen_channel_bot, which posts job listings to the McQueen channel
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 # User-facing Monday bot: onboarding, service toggles and direct messages.
 MONDAY_BOT_TOKEN = os.environ["MONDAY_BOT_TOKEN"]

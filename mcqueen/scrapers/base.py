@@ -31,32 +31,39 @@ class ScraperSource:
         False  # set to false to prevent smartrecruiters from making excesive per listings calls that triggers rate limiting
     )
 
-    # fetch all jobs from one slug
-    def _fetch_one(self, slug: str) -> list[Job]:
+    # fetch all jobs from one slug; None if the fetch failed
+    def _fetch_one(self, slug: str) -> list[Job] | None:
         try:
             return self.scraper_cls(
                 slug, include_descriptions=self.include_descriptions
             ).fetch()
-        except ATSScrapersError as exc:
-            logger.error(f"{exc} for {slug}")
-            return []
-        except Exception as exc:
-            logger.error(f"{exc} for {slug}")
-            return []
+        except ATSScrapersError:
+            logger.exception(f"[{self.name}] fetch failed for {slug}")
+            return None
+        except Exception:
+            logger.exception(f"[{self.name}] unexpected fetch failure for {slug}")
+            return None
 
     def _fetch_all(self) -> list[Job]:
-
-        if len(self.slugs) == 1:
-            return self._fetch_one(self.slugs[0])
-
+        # A failed slug is skipped: its jobs are still unseen, so the next run picks them up.
         raw: list[Job] = []
+        failed = 0
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
             futures = {pool.submit(self._fetch_one, slug): slug for slug in self.slugs}
             for i, future in enumerate(as_completed(futures), start=1):
                 slug = futures[future]
-                raw.extend(future.result())
+                jobs = future.result()
+                if jobs is None:
+                    failed += 1
+                    logger.error(f"[{self.name}] ({i}/{len(futures)}) {slug} skipped")
+                    continue
+                raw.extend(jobs)
                 logger.info(f"[{self.name}] ({i}/{len(futures)}) {slug}")
 
+        logger.info(
+            f"[{self.name}] fetched {len(self.slugs) - failed}/{len(self.slugs)} slug(s)"
+        )
         return raw
 
     def _filter(

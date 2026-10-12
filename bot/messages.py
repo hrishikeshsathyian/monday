@@ -4,7 +4,7 @@ import logging
 from telegram import Bot, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.error import RetryAfter, TelegramError, TimedOut
-from .client import bot as telegram_bot
+from .client import mcqueen_channel_bot
 
 logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
@@ -15,8 +15,8 @@ async def send_message(
     chat_id: str,
     text: str,
     reply_markup: InlineKeyboardMarkup | None = None,
-    bot: Bot = telegram_bot,
-) -> None:
+    bot: Bot = mcqueen_channel_bot,
+) -> bool:
     """Send a message to a Telegram chat with automatic retry on transient failures.
 
     Retries up to MAX_RETRIES times on flood control (RetryAfter) or timeouts.
@@ -27,7 +27,10 @@ async def send_message(
         chat_id: Telegram chat ID to send to.
         text: Message text (will be parsed as HTML).
         reply_markup: Optional inline keyboard.
-        bot: Bot instance to use (defaults to the broadcaster bot).
+        bot: Bot instance to use (defaults to the McQueen channel bot).
+
+    Returns:
+        True if the message was sent, False if it was given up on.
     """
     for _ in range(MAX_RETRIES):
         try:
@@ -39,7 +42,7 @@ async def send_message(
                 reply_markup=reply_markup,
             )
             logger.info(f"Successfully sent message {text[:10]}... to telegram")
-            return
+            return True
 
         except RetryAfter as e:
             retry_after = e.retry_after
@@ -55,6 +58,7 @@ async def send_message(
         except TelegramError as e:
             logger.error(f"Telegram error occurred: {e}.")
             # do not retry if it is a telegram error just exit
-            return
+            return False
 
     logger.error(f"Giving up sending message after {MAX_RETRIES} retries.")
+    return False

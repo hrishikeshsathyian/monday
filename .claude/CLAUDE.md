@@ -1,0 +1,14 @@
+# Project guidelines
+
+## Error handling and logging
+
+Low-level modules catch and log the errors from what they call and return `None`. The caller decides what that failure means and logs the decision.
+
+1. **Catch errors from an external service in the module that calls it, and return `None` on failure.** The caller checks for `None`, decides what happens, and logs that decision with the context it has, such as the user.
+   - Example: `hermione/canvas.py` catches `CanvasException` and returns `None`. The runner skips the user's digest if their assignments or classes are `None`.
+   - Raise instead only when a caller needs to know *how* the call failed in order to act differently, for example telling the user their key expired rather than retrying tomorrow.
+2. **Log where the error is handled, and don't log and then re-raise.** A caller that receives a failure already logged below (`None`) still logs what it does about it, e.g. "Skipping Hermione digests: could not load authenticated users". Logging the same failure twice is fine when it makes the caller's code readable and the failure traceable.
+3. **Low-level modules (`canvas.py`, `nusmods.py`, `db/`) log the error details** (exception type and traceback), since they have them. For example, `nusmods.py` also caches a failed module lookup so it's only requested once per run.
+4. **Catch the named exceptions you expect** (`APIError`, `ValidationError`, `CanvasException`) and log them as errors. A function that returns `None` on failure may also catch `Exception`, logged as "Unexpected …", so its caller always gets `None` rather than an exception. Anything that still escapes reaches the top-level catch-all, such as the `gather` handler in `HermioneRunner.run()`.
+5. **Give the log line all the context the handler has:** who was affected (chat ID and username), what was attempted, and what happens next (for example "Skipping Hermione digest for chat …").
+6. **A fetch function never turns a failure into an empty result.** It returns `None` (or raises) when the lookup fails, and `[]` only when there is genuinely nothing there. A failure is never shown to users as "nothing there": a partial or failed lookup skips the output (e.g. the digest) rather than showing an incomplete one. `get_classes_on` returns `None` if any module's timetable fails, rather than leaving that module out.
