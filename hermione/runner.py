@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 
 from bot.hermione import send_daily_digest
+from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
 from db.models import HermioneUserCredential
 from db.service_credentials import get_authenticated_hermione_users
 from security.credentials import decrypt_secret
@@ -29,6 +30,8 @@ class HermioneRunner:
         if users is None:
             logger.error("Skipping Hermione digests; error while loading authenticated users")
             return
+        if IS_DEV:
+            users = [user for user in users if user.telegram_chat_id == HERMIONE_DEV_CHAT_ID]
         if not users:
             logger.info("No users with Hermione enabled; no digests to send")
             return

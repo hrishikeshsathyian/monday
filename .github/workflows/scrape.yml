@@ -31,4 +31,5 @@ jobs:
           TELEGRAM_CHAT_ID_NON_INTERN: ${{ secrets.TELEGRAM_CHAT_ID_NON_INTERN }}
           MONDAY_BOT_TOKEN: ${{ secrets.MONDAY_BOT_TOKEN }}
           FERNET_KEY: ${{ secrets.FERNET_KEY }}
+          ENV: prod
         run: uv run -m mcqueen.main --all

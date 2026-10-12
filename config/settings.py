@@ -10,6 +10,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# "dev" on a laptop, "prod" in deployed environments. Dev runs are restricted so
+# they can't reach real users (see hermione/runner.py).
+ENV = os.environ["ENV"]
+if ENV not in ("dev", "prod"):
+    raise ValueError(f"ENV must be 'dev' or 'prod', got {ENV!r}")
+IS_DEV = ENV == "dev"
+
+# only user a dev run sends messages to 
+_hermione_dev_chat_id = os.environ.get("HERMIONE_DEV_CHAT_ID")
+HERMIONE_DEV_CHAT_ID = int(_hermione_dev_chat_id) if _hermione_dev_chat_id else None
+
 # TELEGRAM CONFIG
 # Token for mcqueen_channel_bot, which posts job listings to the McQueen channel
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
