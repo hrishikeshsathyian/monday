@@ -23,6 +23,7 @@ def get_classes_on(
     weekday = f"{day:%A}"
     classes = []
 
+    # class_groups looks like {"cs3210":[L01,T02]}
     for module_code, sections in class_groups.items():
         groups = {group for section in sections if (group := _parse_section(section))}
         if not groups:

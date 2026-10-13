@@ -22,7 +22,6 @@ class Lesson:
     venue: str
 
 
-# Each module is fetched once per process, so users sharing a module reuse the lookup.
 @functools.cache
 def get_module_lessons(module_code: str) -> tuple[Lesson, ...] | None:
     url = f"{NUSMODS_API_URL}/{ACADEMIC_YEAR}/modules/{module_code}.json"
@@ -31,7 +30,6 @@ def get_module_lessons(module_code: str) -> tuple[Lesson, ...] | None:
         response.raise_for_status()
         semesters = response.json()["semesterData"]
 
-        # A module not offered this semester genuinely has no lessons.
         timetable = next(
             (data["timetable"] for data in semesters if data["semester"] == SEMESTER),
             [],
