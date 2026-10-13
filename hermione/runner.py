@@ -22,24 +22,19 @@ class HermioneRunner:
     """Send the daily digest to every authenticated Hermione user."""
 
     async def run(self) -> None:
-        # NUSMods lookups are cached per process; start each run fresh so a failed or
-        # outdated timetable from an earlier run in the same process isn't reused.
         get_module_lessons.cache_clear()
 
         users = get_authenticated_hermione_users()
         if users is None:
             logger.error(
-                "Skipping Hermione digests; error while loading authenticated users"
+                "Error while loading authenticated users, skipping Hermione run.."
             )
             return
         if IS_DEV:
             users = [
                 user for user in users if user.telegram_chat_id == HERMIONE_DEV_CHAT_ID
             ]
-        if not users:
-            logger.info("No users with Hermione enabled; no digests to send")
-            return
-
+        
         # Every user is processed, MAX_CONCURRENT_USERS at a time: each task waits for
         # a free slot, and a finished user frees its slot for the next one.
         slots = asyncio.Semaphore(MAX_CONCURRENT_USERS)
@@ -69,13 +64,11 @@ class HermioneRunner:
         api_key = decrypt_secret(user.encrypted_secret)
         if api_key is None:
             logger.error(
-                "Skipping Hermione digest for chat %s (@%s): could not decrypt their credential",
-                user.telegram_chat_id,
-                user.telegram_username,
+                f"Error decrypting API key, skipping Hermione run for {user.telegram_chat_id} ({user.telegram_username})",
             )
             return False
 
-        # canvasapi is blocking; a worker thread keeps the event loop free for other users.
+        # canvasapi is blocking; using to_thread keeps the event loop free for other users.
         assignments = await asyncio.to_thread(get_upcoming_assignments, api_key)
         if assignments is None:
             logger.error(

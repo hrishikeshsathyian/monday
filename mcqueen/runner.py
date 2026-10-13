@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ats_scrapers.models import Job
 from telegram import Bot
@@ -20,33 +20,28 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class McQueenRunner:
-    """Owns the McQueen pipeline end to end: scrape -> upsert -> publish to the channel, and DM internships to subscribers."""
+    """Owns the McQueen pipeline end to end: scrape -> upsert -> publish to the channel, and DM internships to users with McQueen service toggled on."""
 
-    sources: list[ScraperSource] = field(default_factory=lambda: list(SOURCES))
-    channels: dict[str, JobChannel] = field(default_factory=lambda: dict(JOB_CHANNELS))
+    sources: list[ScraperSource]
 
     @classmethod
-    def from_source_names(cls, source_names: list[str] | None) -> "McQueenRunner":
-        # None means we want every configured source in this instance of the runner.
-        if source_names is None:
-            return cls()
+    def from_source_names(cls, selected_sources: list[str]):
         return cls(
-            sources=[source for source in SOURCES if source.name in source_names]
+            sources=[source for source in SOURCES if source.name in selected_sources]
         )
 
     def _load_seen_ids(self) -> set[str] | None:
-        ''' Get all unique ids of listings already seen.'''
+        """Get all unique ids of listings already seen."""
         seen_ids: set[str] = set()
-        for channel in self.channels.values():
+        for channel in JOB_CHANNELS.values():
             channel_ids = get_seen_global_ids(channel.table_name)
             if channel_ids is None:
-                # None is an error outcome, bubbled up to the next caller to log and handle
                 return None
             seen_ids |= channel_ids
         return seen_ids
 
     def _scrape(self, seen_ids: set[str]) -> dict[str, list[Job]]:
-        """ Returns 3 buckets of NEW listings for TECH_INTERN, TECH_NON_INTERN and NON_TECH respectively """
+        """Returns 3 deduplicated buckets of NEW listings for TECH_INTERN, TECH_NON_INTERN and NON_TECH respectively"""
         buckets: dict[str, list[Job]] = {
             TECH_INTERN: [],
             TECH_NON_INTERN: [],
@@ -58,18 +53,18 @@ class McQueenRunner:
             tech_intern_jobs, tech_non_intern_jobs, non_tech_jobs = source.scrape(
                 seen_ids
             )
-            
+
             buckets[TECH_INTERN].extend(tech_intern_jobs)
             buckets[TECH_NON_INTERN].extend(tech_non_intern_jobs)
             buckets[NON_TECH].extend(non_tech_jobs)
-            
+
             logger.info(f"""
         Found {len(tech_intern_jobs)} NEW TECH INTERN POSTINGS in {source.name}
         Found {len(tech_non_intern_jobs)} NEW TECH NON INTERN POSTINGS in {source.name}
         Found {len(non_tech_jobs)} NEW NON TECH NON INTERN POSTINGS in {source.name}
         """)
 
-        # fallback deduplicate in-case an ATL lists the same entry twice, prevents DB upsertion error
+        # deduplicate in-case an ATL lists the same entry twice, prevents DB upsertion error
         for bucket, jobs in buckets.items():
             unique_jobs: dict[str, Job] = {}
             duplicate_ids: set[str] = set()
@@ -80,13 +75,6 @@ class McQueenRunner:
                     continue
                 unique_jobs[job.global_id] = job
 
-            if duplicate_ids:
-                logger.warning(
-                    "Dropped %d duplicate job(s) from %s: %s",
-                    len(jobs) - len(unique_jobs),
-                    bucket,
-                    ", ".join(sorted(duplicate_ids)),
-                )
             buckets[bucket] = list(unique_jobs.values())
 
         return buckets
@@ -133,7 +121,7 @@ class McQueenRunner:
     async def _publish_to_monday(
         self, jobs: list[Job], mcqueen_users: list[McQueenUser]
     ) -> None:
-        
+
         sent = 0
         for user in mcqueen_users:
             # Subscribers chat with the Monday bot, so it has to be the one that DMs them.
@@ -158,13 +146,9 @@ class McQueenRunner:
     def _load_subscribers(self) -> list[McQueenUser] | None:
         subscribers = get_mcqueen_users()
         if subscribers is None:
-            logger.error(
-                "Not sending internships to McQueen subscribers this run: could not "
-                "load them; internships will still be attempted to be posted to the channel"
-            )
+            logger.error("Error loading McQueen Subscribers...")
             return None
-        # in dev environments, restricting to only sending to developers via Dev Monday Bot. If not Dev Monday Bot will attempt to send to all users
-        # TODO : this will be resolved once we have a separate dev database
+
         if IS_DEV:
             subscribers = [
                 user
@@ -176,8 +160,7 @@ class McQueenRunner:
     async def run(self) -> None:
         seen_ids = self._load_seen_ids()
         if seen_ids is None:
-            # Without the seen IDs every job looks new and would be re-posted.
-            logger.error("Skipping McQueen run: could not load already-seen jobs")
+            logger.error("Error loading seen_ids, skipping McQueen run...")
             return
 
         subscribers = self._load_subscribers()
@@ -186,24 +169,25 @@ class McQueenRunner:
             if not jobs:
                 continue
 
-            channel = self.channels[bucket]
+            channel = JOB_CHANNELS[bucket]
             # Persist before publishing so a failed send can't lose the posting.
             if not upsert_jobs(jobs, channel.table_name):
-                # Unsaved jobs still look new next run; publishing now would post them twice.
                 logger.error(
-                    "Not publishing %d %s job(s): could not save them to %s",
-                    len(jobs),
-                    bucket,
-                    channel.table_name,
+                    f"Error upserting jobs to {channel.table_name}, skipping publishing.",
                 )
                 continue
-            
-            if bucket == TECH_INTERN: 
+
+            if bucket == TECH_INTERN:
                 await self._publish_to_channel(channel, jobs)
             else:
-                logger.info(f"Skipping publishing to {bucket} channel since it is not live..")
+                logger.info(
+                    f"Skipping publishing to {bucket} channel since it is not live.."
+                )
 
-            # Subscribers get internships only; the non-intern channel is deprecated for now.
-            # None means loading them failed, which _load_subscribers has already logged.
+            # Subscribers get internships only;
             if bucket == TECH_INTERN and subscribers is not None:
                 await self._publish_to_monday(jobs, subscribers)
+            elif not subscribers:
+                logger.error(
+                    f"Error loading subscribers... skipping publishing {bucket} to monday.."
+                )

@@ -11,9 +11,7 @@ from .scrapers.source import SOURCES
 
 def parse_args() -> argparse.Namespace:
     available_sources = [source.name for source in SOURCES]
-    parser = argparse.ArgumentParser(
-        description="McQueen — scrape job sources and publish new postings."
-    )
+    parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--all",
@@ -33,7 +31,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     setup_logging()
-    asyncio.run(McQueenRunner.from_source_names(args.sources).run())
+    # default to all if nothing selected via "--sources" command line flag
+    source_names = args.sources or [source.name for source in SOURCES]
+    asyncio.run(McQueenRunner.from_source_names(source_names).run())
 
 
 if __name__ == "__main__":

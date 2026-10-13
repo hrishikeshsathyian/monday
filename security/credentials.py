@@ -1,4 +1,4 @@
-"""Symmetric (Fernet) encryption for third-party service credentials stored in the database."""
+"""Symmetric (Fernet) encryption for secret service credentials stored in the database."""
 
 import logging
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def encrypt_secret(secret: str) -> str | None:
-    """Encrypt a plaintext credential for storage. Returns None (already logged) on failure."""
+    """Encrypt a plaintext credential for storage. Returns None on failure."""
     try:
         return Fernet(FERNET_KEY.encode()).encrypt(secret.encode()).decode()
     except (TypeError, ValueError):
@@ -18,7 +18,7 @@ def encrypt_secret(secret: str) -> str | None:
 
 
 def decrypt_secret(encrypted_secret: str) -> str | None:
-    """Decrypt a stored credential. Returns None (already logged) on failure."""
+    """Decrypt a stored credential. Returns None on failure."""
     try:
         return Fernet(FERNET_KEY.encode()).decrypt(encrypted_secret.encode()).decode()
     except (InvalidToken, TypeError, ValueError, UnicodeDecodeError):
