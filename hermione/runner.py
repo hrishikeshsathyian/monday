@@ -7,7 +7,7 @@ from datetime import datetime
 from bot.hermione import send_daily_digest
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
 from db.models import HermioneUser
-from db.service_credentials import get_authenticated_hermione_users
+from db.user_services import get_authenticated_hermione_users
 from integrations.canvas import get_class_groups
 from security.credentials import decrypt_secret
 

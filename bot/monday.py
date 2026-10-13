@@ -40,8 +40,8 @@ from bot.walle import (
     handle_course_selected,
     send_course_picker,
 )
-from db.service_credentials import (
-    get_service_credentials,
+from db.user_services import (
+    get_user_services,
     set_service_enabled,
 )
 from db.user_credentials import has_credential
@@ -58,7 +58,7 @@ ON_DEMAND_AFTER_CANVAS_AUTH = {
 
 
 def format_service_overview(
-    service_credentials: list[DbUserService],
+    user_services: list[DbUserService],
 ) -> str:
 
     lines = [
@@ -66,15 +66,15 @@ def format_service_overview(
         "",
     ]
 
-    for credential in service_credentials:
+    for user_service in user_services:
         service_name, description = MONDAY_TOGGLE_SERVICES.get(
-            credential.service, (credential.service.title(), "")
+            user_service.service, (user_service.service.title(), "")
         )
-        icon, state = ("✅", "Enabled") if credential.enabled else ("○", "Disabled")
+        icon, state = ("✅", "Enabled") if user_service.enabled else ("○", "Disabled")
 
         lines.append(
             f"{icon} <b>{service_name}</b> - {description}\n"
-            f"   {state} · /{credential.service} to toggle"
+            f"   {state} · /{user_service.service} to toggle"
         )
 
         lines.append("")
@@ -100,9 +100,9 @@ async def send_service_overview(update: Update) -> None:
     if user is None:
         return
 
-    service_credentials = get_service_credentials(user.id)
+    user_services = get_user_services(user.id)
 
-    if service_credentials is None:
+    if user_services is None:
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
@@ -110,7 +110,7 @@ async def send_service_overview(update: Update) -> None:
         return
 
     await update.message.reply_text(
-        format_service_overview(service_credentials),
+        format_service_overview(user_services),
         parse_mode="HTML",
     )
 
@@ -212,9 +212,9 @@ async def handle_service_toggle(
         )
         return ConversationHandler.END
 
-    service_credentials = get_service_credentials(user.id)
+    user_services = get_user_services(user.id)
 
-    if service_credentials is None:
+    if user_services is None:
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
@@ -224,9 +224,9 @@ async def handle_service_toggle(
     # we use current_state here to account for empty list handling
     current_state = next(
         (
-            credential.enabled
-            for credential in service_credentials
-            if credential.service == service
+            user_service.enabled
+            for user_service in user_services
+            if user_service.service == service
         ),
         None,
     )

@@ -9,7 +9,7 @@ from bot.mcqueen import BATCH_THRESHOLD, send_job, send_job_batch
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
 from db.jobs import get_seen_global_ids, upsert_jobs
 from db.models import McQueenUser
-from db.service_credentials import get_mcqueen_users
+from db.user_services import get_mcqueen_users
 
 from .config import JOB_CHANNELS, NON_TECH, TECH_INTERN, TECH_NON_INTERN, JobChannel
 from .scrapers.base import ScraperSource
