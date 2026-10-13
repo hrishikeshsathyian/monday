@@ -69,14 +69,7 @@ def get_service_credentials(telegram_user_id: int) -> list[DbUserService] | None
         )
         return None
 
-    try:
-        return [DbUserService.model_validate(row) for row in response.data]
-    except ValidationError:
-        logger.error(
-            f"Invalid service credential data for user {telegram_user_id}",
-            exc_info=True,
-        )
-        return None
+    return [DbUserService.model_validate(row) for row in response.data]
 
 
 def set_service_enabled(

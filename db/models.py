@@ -61,6 +61,16 @@ class DbUserService(BaseModel):
     updated_at: datetime
 
 
+class DbUserCredential(BaseModel):
+    telegram_user_id: int
+    provider: str
+    encrypted_secret: str
+    expires_at: datetime
+
+    created_at: datetime
+    updated_at: datetime
+
+
 # Query results of user_services joined with users, not mirrors of a table.
 # Supabase nests the joined columns under "users"; AliasPath reads them from there.
 class McQueenUser(BaseModel):

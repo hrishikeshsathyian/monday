@@ -1,7 +1,9 @@
+"""All bot messaging functionality UNIQUE to Hermione Service"""
+
 import html
 from datetime import datetime
 
-from hermione.canvas import UpcomingAssignment
+from hermione.assignments import UpcomingAssignment
 from hermione.config import DIGEST_WINDOW_DAYS, DISPLAY_TIMEZONE
 from hermione.nusmods import Lesson
 

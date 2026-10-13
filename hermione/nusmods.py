@@ -48,9 +48,9 @@ def get_module_lessons(module_code: str) -> tuple[Lesson, ...] | None:
         )
 
     except (requests.RequestException, KeyError, ValueError):
-        logger.exception("Could not fetch NUSMods timetable for %s", module_code)
+        logger.exception(f"Could not fetch NUSMods timetable for {module_code}")
         return None
 
     except Exception:
-        logger.exception("Unexpected NUSMods timetable failure for %s", module_code)
+        logger.exception(f"Unexpected NUSMods timetable failure for {module_code}")
         return None

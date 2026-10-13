@@ -11,12 +11,25 @@ from enum import Enum, auto
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from bot.text_presets import (
+    CANVAS_AUTH_CANCELLED_TEXT,
+    CANVAS_AUTH_PROMPT_TEXT,
+    CANVAS_CHECKING_KEY_TEXT,
+    CANVAS_CONNECTED_TEXT,
+    CANVAS_INVALID_KEY_TEXT,
+    CANVAS_KEY_CHECK_UNAVAILABLE_TEXT,
+    CANVAS_KEY_SAVE_FAILED_TEXT,
+)
 from db.user_credentials import set_credential
 from integrations.canvas import canvas_healthcheck
 
 logger = logging.getLogger(__name__)
 
 AWAITING_CANVAS_API_KEY = 1
+
+# user_data key remembering which service started the flow, so it can continue
+# once Canvas is connected.
+PENDING_SERVICE = "canvas_auth_pending_service"
 
 
 class CanvasAuthResult(Enum):
@@ -25,35 +38,26 @@ class CanvasAuthResult(Enum):
     FAILED = auto()  # flow ends without a saved key
 
 
-AUTH_PROMPT_TEXT = (
-    "🔐 <b>Connect Monday to Canvas</b>\n\n"
-    "Paste your Canvas API key to continue. Monday's Canvas services all share this key.\n\n"
-    "<b>Where to find it? </b> \n Canvas → Account → Settings → Approved Integrations → New Access Token\n\n"
-    "Your token is encrypted safely before being stored and is never exposed in plaintext.\n\n"
-    "Use /cancel to cancel authentication flow."
-)
-CHECKING_KEY_TEXT = "Validating your Canvas API key…"
-INVALID_KEY_TEXT = (
-    "⚠️ <b>That Canvas API key didn't work.</b>\n\n"
-    "Please try again with another key, or use /cancel to stop the authentication process."
-)
-CANVAS_UNAVAILABLE_TEXT = (
-    "⚠️ <b>Couldn't reach Canvas to check your key.</b>\n\n"
-    "Please send it again in a moment, or use /cancel to stop the authentication process."
-)
-SAVE_FAILED_TEXT = (
-    "⚠️ <b>Your Canvas Key was valid but we couldn't save it</b>\n\n"
-    "Please try again in a moment."
-)
-CONNECTED_TEXT = (
-    "✅ <b>Canvas connected.</b> Your Canvas key will be valid for the next 3 months."
-)
-CANCELLED_TEXT = "Canvas authentication flow cancelled."
+async def prompt_canvas_auth(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    service: str,
+) -> int:
+    """Ask for a Canvas key on behalf of <service> and wait for the reply."""
 
-
-async def prompt_canvas_auth(update: Update) -> None:
+    if context.user_data is not None:
+        context.user_data[PENDING_SERVICE] = service
     if update.message is not None:
-        await update.message.reply_text(AUTH_PROMPT_TEXT, parse_mode="HTML")
+        await update.message.reply_text(CANVAS_AUTH_PROMPT_TEXT, parse_mode="HTML")
+    return AWAITING_CANVAS_API_KEY
+
+
+def pop_pending_service(context: ContextTypes.DEFAULT_TYPE) -> str | None:
+    """The service that started the flow, cleared so it can't be reused."""
+
+    if context.user_data is None:
+        return None
+    return context.user_data.pop(PENDING_SERVICE, None)
 
 
 async def receive_canvas_api_key(update: Update) -> CanvasAuthResult:
@@ -62,34 +66,32 @@ async def receive_canvas_api_key(update: Update) -> CanvasAuthResult:
 
     api_key = (update.message.text or "").strip()
     if not api_key:
-        await update.message.reply_text(INVALID_KEY_TEXT, parse_mode="HTML")
+        await update.message.reply_text(CANVAS_INVALID_KEY_TEXT, parse_mode="HTML")
         return CanvasAuthResult.RETRY
 
-    await update.message.reply_text(CHECKING_KEY_TEXT)
+    await update.message.reply_text(CANVAS_CHECKING_KEY_TEXT)
     is_valid = await asyncio.to_thread(canvas_healthcheck, api_key)
     if is_valid is None:
         logger.error(
-            "Could not verify Canvas key for user %s (@%s); asked them to retry",
-            update.effective_user.id,
-            update.effective_user.username,
+            f"Could not verify Canvas key for user {update.effective_user.id} (@{update.effective_user.username}); asked them to retry"
         )
-        await update.message.reply_text(CANVAS_UNAVAILABLE_TEXT, parse_mode="HTML")
+        await update.message.reply_text(
+            CANVAS_KEY_CHECK_UNAVAILABLE_TEXT, parse_mode="HTML"
+        )
         return CanvasAuthResult.RETRY
 
     if not is_valid:
-        await update.message.reply_text(INVALID_KEY_TEXT, parse_mode="HTML")
+        await update.message.reply_text(CANVAS_INVALID_KEY_TEXT, parse_mode="HTML")
         return CanvasAuthResult.RETRY
 
     if not set_credential(update.effective_user.id, "canvas", api_key):
         logger.error(
-            "Ending Canvas auth for user %s (@%s): could not save their verified key",
-            update.effective_user.id,
-            update.effective_user.username,
+            f"Ending Canvas auth for user {update.effective_user.id} (@{update.effective_user.username}): could not save their verified key"
         )
-        await update.message.reply_text(SAVE_FAILED_TEXT, parse_mode="HTML")
+        await update.message.reply_text(CANVAS_KEY_SAVE_FAILED_TEXT, parse_mode="HTML")
         return CanvasAuthResult.FAILED
 
-    await update.message.reply_text(CONNECTED_TEXT, parse_mode="HTML")
+    await update.message.reply_text(CANVAS_CONNECTED_TEXT, parse_mode="HTML")
     return CanvasAuthResult.CONNECTED
 
 
@@ -97,7 +99,7 @@ async def cancel_canvas_auth(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    del context
+    pop_pending_service(context)
     if update.message is not None:
-        await update.message.reply_text(CANCELLED_TEXT)
+        await update.message.reply_text(CANVAS_AUTH_CANCELLED_TEXT)
     return ConversationHandler.END

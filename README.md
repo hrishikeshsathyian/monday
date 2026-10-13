@@ -13,6 +13,9 @@ Monday offers various sub-services, each with its own distinct functionality. Pi
 |---|---|
 | **McQueen ⚡** | <ins>**Live Alerts**</ins> for SG Computing Internship Listings|
 | **Hermione 📚** | <ins>**Daily**</ins> Canvas reminders for Upcoming Assignments and Quizzes |
+| **Wall-E 📦** | <ins>**On-demand**</ins> Canvas Course files, zipped and sent straight to your chat |
+
+> The individual architecture and implementation of each service is found in architectures/
 
 ## Overall Architecture
 
@@ -24,6 +27,7 @@ flowchart TB
         direction LR
         mcqueen[["McQueen ⚡"]]
         hermione[["Hermione 📚"]]
+        walle[["Wall-E 📦"]]
     end
 
     bot[["Monday Bot"]]
@@ -31,8 +35,10 @@ flowchart TB
 
     core <-.-> mcqueen
     core <-.-> hermione
+    core <-.-> walle
     mcqueen -- Live Internship Listings--> bot
     hermione -- Daily Canvas Digest --> bot
+    walle -- Course Files Zip --> bot
     bot <--> users
 ```
 

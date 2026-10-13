@@ -31,7 +31,6 @@ MONDAY_BOT_TOKEN = os.environ["MONDAY_BOT_TOKEN"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
 SERVICE_CREDENTIALS_TABLE = "user_services"
-# Third-party credentials (e.g. Canvas API keys), shared by every service that needs them.
 USER_CREDENTIALS_TABLE = "user_credentials"
 
 # SECURITY CONFIG
