@@ -6,9 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 from canvasapi import Canvas
 from canvasapi.assignment import Assignment
-from canvasapi.exceptions import CanvasException, InvalidAccessToken, Unauthorized
+from canvasapi.exceptions import CanvasException
 
-from .config import CANVAS_URL, DIGEST_WINDOW_DAYS
+from config.settings import CANVAS_URL
+
+from .config import DIGEST_WINDOW_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -21,23 +23,6 @@ class UpcomingAssignment:
     due_at: datetime
     is_quiz: bool
     is_submitted: bool
-
-
-def canvas_healthcheck(api_key: str) -> bool | None:
-    """True if Canvas accepts the key, False if it rejects it, None if Canvas couldn't be checked."""
-
-    try:
-        Canvas(CANVAS_URL, api_key).get_current_user()
-        return True
-    except (InvalidAccessToken, Unauthorized):
-        logger.warning("Canvas healthcheck rejected an API key")
-        return False
-    except CanvasException:
-        logger.exception("Canvas healthcheck failed")
-        return None
-    except Exception:
-        logger.exception("Unexpected Canvas healthcheck failure")
-        return None
 
 
 def get_upcoming_assignments(api_key: str) -> list[UpcomingAssignment] | None:

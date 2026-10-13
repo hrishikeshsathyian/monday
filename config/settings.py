@@ -31,7 +31,13 @@ MONDAY_BOT_TOKEN = os.environ["MONDAY_BOT_TOKEN"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
 SERVICE_CREDENTIALS_TABLE = "user_services"
+# Third-party credentials (e.g. Canvas API keys), shared by every service that needs them.
+USER_CREDENTIALS_TABLE = "user_credentials"
 
 # SECURITY CONFIG
 # Fernet key used to encrypt third-party service credentials at rest.
 FERNET_KEY = os.environ["FERNET_KEY"]
+
+# CANVAS CONFIG
+# NUS Canvas instance that student API keys are issued for.
+CANVAS_URL = "https://canvas.nus.edu.sg"

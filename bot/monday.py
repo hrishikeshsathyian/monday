@@ -11,9 +11,10 @@ from telegram.ext import (
 )
 
 from config.settings import MONDAY_BOT_TOKEN
-from bot.hermione import (
+from bot.canvas_auth import (
     AWAITING_CANVAS_API_KEY,
-    cancel_hermione_auth,
+    CanvasAuthResult,
+    cancel_canvas_auth,
     prompt_canvas_auth,
     receive_canvas_api_key,
 )
@@ -21,6 +22,7 @@ from db.service_credentials import (
     get_service_credentials,
     set_service_enabled,
 )
+from db.user_credentials import has_credential
 from db.models import DbUserService
 from db.users import get_user, try_create_user
 
@@ -32,6 +34,12 @@ MONDAY_SERVICES: dict[str, str] = {
     "mcqueen": "Live Alerts for new SG Computing Internship Listings",
     "hermione": "Automatic Daily NUS Canvas Digest: Upcoming Classes and Deadlines",
 }
+
+# Services that need the user's Canvas key before they can be enabled.
+CANVAS_SERVICES = {"hermione"}
+
+# user_data key remembering which service started the Canvas auth flow.
+PENDING_CANVAS_SERVICE = "pending_canvas_service"
 
 
 ALREADY_REGISTERED_TEXT = (
@@ -282,58 +290,93 @@ async def handle_service_toggle(
 
     new_state = not current_state
 
-    # Hermione requires a Canvas API key before it can be enabled.
-    # If the user has not authenticated before, begin the auth conversation
+    # Canvas services need the user's Canvas key before they can be enabled.
+    # If the user has not connected Canvas yet, begin the auth conversation
     # instead of enabling the service immediately.
-    if (
-        service == "hermione"
-        and new_state
-        and not next(
-            credential.encrypted_secret
-            for credential in service_credentials
-            if credential.service == service
-        )
-    ):
-        await prompt_canvas_auth(update)
+    if service in CANVAS_SERVICES and new_state:
+        has_canvas_key = has_credential(user.id, "canvas")
+        if has_canvas_key is None:
+            logger.error(
+                "Not enabling %s for user %s (@%s): could not check their Canvas key",
+                service,
+                user.id,
+                user.username,
+            )
+            await update.message.reply_text(
+                SERVICE_STATE_FAILED_TEXT,
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
 
-        # ConversationHandler will now route the user's next text message
-        # to handle_canvas_api_key().
-        return AWAITING_CANVAS_API_KEY
+        if not has_canvas_key:
+            if context.user_data is not None:
+                context.user_data[PENDING_CANVAS_SERVICE] = service
+            await prompt_canvas_auth(update)
 
-    # Services that do not require authentication can be toggled immediately.
-    if not set_service_enabled(
-        user.id,
-        service,
-        new_state,
-    ):
+            # ConversationHandler will now route the user's next text message
+            # to handle_canvas_api_key().
+            return AWAITING_CANVAS_API_KEY
+
+    if await set_service_and_reply(update, user.id, service, new_state):
+        await send_service_overview(update)
+
+    # No further interaction is needed for this command.
+    return ConversationHandler.END
+
+
+async def set_service_and_reply(
+    update: Update,
+    telegram_user_id: int,
+    service: str,
+    enabled: bool,
+) -> bool:
+    """Enable or disable a service and tell the user what to expect."""
+
+    if update.message is None:
+        return False
+
+    if not set_service_enabled(telegram_user_id, service, enabled):
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
         )
-        return ConversationHandler.END
+        return False
 
     await update.message.reply_text(
-        SERVICE_ENABLED_TEXT[service] if new_state else SERVICE_DISABLED_TEXT[service],
+        SERVICE_ENABLED_TEXT[service] if enabled else SERVICE_DISABLED_TEXT[service],
         parse_mode="HTML",
     )
-
-    await send_service_overview(update)
-
-    # No further interaction is needed for this command.
-    return ConversationHandler.END
+    return True
 
 
 async def handle_canvas_api_key(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    """Run Hermione's key check, then show the overview once the flow ends."""
+    """Run the Canvas key check, then enable the service that asked for it."""
 
-    next_state = await receive_canvas_api_key(update, context)
+    result = await receive_canvas_api_key(update)
+    if result is CanvasAuthResult.RETRY:
+        return AWAITING_CANVAS_API_KEY
 
-    if next_state == ConversationHandler.END:
-        await send_service_overview(update)
-    return next_state
+    service = (
+        context.user_data.pop(PENDING_CANVAS_SERVICE, None)
+        if context.user_data is not None
+        else None
+    )
+
+    if result is CanvasAuthResult.CONNECTED and update.effective_user is not None:
+        if service is None:
+            logger.error(
+                "Canvas connected for user %s (@%s) but no service was waiting on it",
+                update.effective_user.id,
+                update.effective_user.username,
+            )
+        else:
+            await set_service_and_reply(update, update.effective_user.id, service, True)
+
+    await send_service_overview(update)
+    return ConversationHandler.END
 
 
 def run_monday() -> None:
@@ -358,7 +401,7 @@ def run_monday() -> None:
     )
 
     # Service commands act as both normal toggles and entry points into
-    # multi-step flows such as Hermione's Canvas authentication.
+    # multi-step flows such as Canvas authentication.
     app.add_handler(
         ConversationHandler(
             entry_points=[
@@ -377,11 +420,11 @@ def run_monday() -> None:
                     ),
                 ],
             },
-            # /cancel lets the user exit the Hermione authentication flow.
+            # /cancel lets the user exit the Canvas authentication flow.
             fallbacks=[
                 CommandHandler(
                     "cancel",
-                    cancel_hermione_auth,
+                    cancel_canvas_auth,
                 ),
             ],
         )

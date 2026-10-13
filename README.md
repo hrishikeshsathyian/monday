@@ -18,7 +18,7 @@ Monday offers various sub-services, each with its own distinct functionality. Pi
 
 ```mermaid
 flowchart TB
-    core[("<u>**Shared Core**</u><br/>Database · Security · Config")]
+    core[("<u>**Shared Core**</u><br/>Database · Security · Config · Canvas Auth")]
 
     subgraph services["<u>**Services**</u>"]
         direction LR

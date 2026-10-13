@@ -83,4 +83,7 @@ class HermioneUser(BaseModel):
     telegram_username: str | None = Field(
         validation_alias=AliasPath("users", "telegram_username")
     )
-    encrypted_secret: str
+    # The user's Canvas key; the query filters user_credentials down to that one row.
+    encrypted_secret: str = Field(
+        validation_alias=AliasPath("users", "user_credentials", 0, "encrypted_secret")
+    )
