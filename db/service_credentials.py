@@ -159,7 +159,7 @@ def set_service_secret(
 
 
 def get_mcqueen_users() -> list[McQueenUser] | None:
-    """Fetch every user with McQueen enabled, plus their private chat, in one query."""
+    """Fetch every user with McQueen enabled."""
 
     try:
         response = (
@@ -183,7 +183,7 @@ def get_mcqueen_users() -> list[McQueenUser] | None:
 
 
 def get_authenticated_hermione_users() -> list[HermioneUser] | None:
-    """Fetch every user with Hermione enabled and a stored Canvas key, plus their private chat, in one query."""
+    """Fetch every user with Hermione enabled."""
 
     try:
         response = (

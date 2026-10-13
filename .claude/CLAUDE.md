@@ -1,4 +1,8 @@
-# Project guidelines
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+Monday is a Telegram assistant for NUS computing students. Python 3.12, managed with `uv`.
 
 ## Error handling and logging
 
@@ -12,3 +16,9 @@ Low-level modules catch and log the errors from what they call and return `None`
 4. **Catch the named exceptions you expect** (`APIError`, `ValidationError`, `CanvasException`) and log them as errors. A function that returns `None` on failure may also catch `Exception`, logged as "Unexpected …", so its caller always gets `None` rather than an exception. Anything that still escapes reaches the top-level catch-all, such as the `gather` handler in `HermioneRunner.run()`.
 5. **Give the log line all the context the handler has:** who was affected (chat ID and username), what was attempted, and what happens next (for example "Skipping Hermione digest for chat …").
 6. **A fetch function never turns a failure into an empty result.** It returns `None` (or raises) when the lookup fails, and `[]` only when there is genuinely nothing there. A failure is never shown to users as "nothing there": a partial or failed lookup skips the output (e.g. the digest) rather than showing an incomplete one. `get_classes_on` returns `None` if any module's timetable fails, rather than leaving that module out.
+
+## Conventions
+- Failure is signalled by returning `None` (see `.claude/CLAUDE.md`); callers check for `None` and log the decision with chat ID and username. Never turn a failed fetch into `[]`.
+- Each service keeps its own settings in `<service>/config.py`; only cross-service settings go in `config/settings.py`.
+- Entry points call `config.logging.setup_logging()`, which prefixes every line with `[DEV]`/`[PROD]`.
+- `README.md` is a portfolio piece, not setup docs: keep it high-level and update it when a service is added or changed.
