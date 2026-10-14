@@ -15,7 +15,7 @@ async def send_daily_digest(
     chat_id: int,
     username: str | None,
     assignments: list[UpcomingAssignment],
-    classes: list[Lesson],
+    classes: list[Lesson] | None,
 ) -> bool:
     return await send_message(
         chat_id=str(chat_id),
@@ -27,7 +27,7 @@ async def send_daily_digest(
 def format_daily_digest(
     username: str | None,
     assignments: list[UpcomingAssignment],
-    classes: list[Lesson],
+    classes: list[Lesson] | None,
 ) -> str:
     greeting = (
         f"Rise and shine {html.escape(username)} ☀️🐓!"
@@ -41,7 +41,9 @@ def format_daily_digest(
     ]
 
     lines += ["", "🗓 <b>Today's classes</b>"]
-    if classes:
+    if classes is None:
+        lines.append("Couldn't load today's classes, check NUSMods or Canvas.")
+    elif classes:
         lines += [_class_line(lesson) for lesson in classes]
     else:
         lines.append("No classes today.")

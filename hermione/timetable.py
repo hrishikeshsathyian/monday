@@ -29,7 +29,7 @@ def get_classes_on(
         if not groups:
             continue
 
-        lessons = get_module_lessons(module_code)
+        lessons = _get_cross_listed_lessons(module_code)
         if lessons is None:
             return None
 
@@ -41,6 +41,18 @@ def get_classes_on(
         ]
 
     return sorted(classes, key=lambda lesson: lesson.start_time)
+
+
+def _get_cross_listed_lessons(module_code: str) -> tuple[Lesson, ...] | None:
+    """Lessons for a Canvas course code, which may list several codes like
+    "GES1035/GESS1025". Cross-listed codes share a timetable on NUSMods, so the
+    first code that loads is used."""
+
+    for code in module_code.split("/"):
+        lessons = get_module_lessons(code.strip())
+        if lessons is not None:
+            return lessons
+    return None
 
 
 def _parse_section(section: str) -> tuple[str, str] | None:

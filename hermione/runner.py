@@ -79,9 +79,8 @@ class HermioneRunner:
         classes = await self._get_todays_classes(api_key)
         if classes is None:
             logger.error(
-                f"Skipping Hermione digest for chat {user.telegram_chat_id} (@{user.telegram_username}): could not load their classes"
+                f"Sending Hermione digest to chat {user.telegram_chat_id} (@{user.telegram_username}) without classes: could not load their classes"
             )
-            return False
 
         if not await send_daily_digest(
             user.telegram_chat_id, user.telegram_username, assignments, classes
