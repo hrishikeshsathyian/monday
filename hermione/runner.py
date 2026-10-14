@@ -7,10 +7,11 @@ from datetime import datetime
 from bot.hermione import send_daily_digest
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
 from db.models import HermioneUser
-from db.service_credentials import get_authenticated_hermione_users
+from db.user_services import get_authenticated_hermione_users
+from integrations.canvas import get_class_groups
 from security.credentials import decrypt_secret
 
-from .canvas import get_class_groups, get_upcoming_assignments
+from .assignments import get_digest_assignments
 from .config import DISPLAY_TIMEZONE, MAX_CONCURRENT_USERS
 from .nusmods import Lesson, get_module_lessons
 from .timetable import get_classes_on, is_weekday
@@ -34,7 +35,7 @@ class HermioneRunner:
             users = [
                 user for user in users if user.telegram_chat_id == HERMIONE_DEV_CHAT_ID
             ]
-        
+
         # Every user is processed, MAX_CONCURRENT_USERS at a time: each task waits for
         # a free slot, and a finished user frees its slot for the next one.
         slots = asyncio.Semaphore(MAX_CONCURRENT_USERS)
@@ -50,13 +51,12 @@ class HermioneRunner:
         for user, result in zip(users, results):
             if isinstance(result, Exception):
                 logger.error(
-                    "Unexpected failure sending Hermione digest to chat %s",
-                    user.telegram_chat_id,
+                    f"Unexpected failure sending Hermione digest to chat {user.telegram_chat_id}",
                     exc_info=result,
                 )
 
         sent = sum(result is True for result in results)
-        logger.info("Sent Hermione digests to %d/%d users", sent, len(users))
+        logger.info(f"Sent Hermione reminders to {sent}/{len(users)} users")
 
     async def _send_digest(self, user: HermioneUser) -> bool:
         """Send one user's digest; True only if Telegram accepted it."""
@@ -69,21 +69,17 @@ class HermioneRunner:
             return False
 
         # canvasapi is blocking; using to_thread keeps the event loop free for other users.
-        assignments = await asyncio.to_thread(get_upcoming_assignments, api_key)
+        assignments = await asyncio.to_thread(get_digest_assignments, api_key)
         if assignments is None:
             logger.error(
-                "Skipping Hermione digest for chat %s (@%s): Error loading their assignments",
-                user.telegram_chat_id,
-                user.telegram_username,
+                f"Skipping Hermione digest for chat {user.telegram_chat_id} (@{user.telegram_username}): Error loading their assignments"
             )
             return False
 
         classes = await self._get_todays_classes(api_key)
         if classes is None:
             logger.error(
-                "Skipping Hermione digest for chat %s (@%s): could not load their classes",
-                user.telegram_chat_id,
-                user.telegram_username,
+                f"Skipping Hermione digest for chat {user.telegram_chat_id} (@{user.telegram_username}): could not load their classes"
             )
             return False
 
@@ -91,16 +87,12 @@ class HermioneRunner:
             user.telegram_chat_id, user.telegram_username, assignments, classes
         ):
             logger.error(
-                "Failed to send Hermione digest to chat %s (@%s)",
-                user.telegram_chat_id,
-                user.telegram_username,
+                f"Failed to send Hermione digest to chat {user.telegram_chat_id} (@{user.telegram_username})"
             )
             return False
 
         logger.info(
-            "Sent Hermione digest to chat %s (@%s)",
-            user.telegram_chat_id,
-            user.telegram_username,
+            f"Sent Hermione digest to chat {user.telegram_chat_id} (@{user.telegram_username})"
         )
         return True
 

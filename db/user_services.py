@@ -1,13 +1,10 @@
 import logging
-from calendar import monthrange
-from datetime import datetime, timezone
 from typing import Any
 
 from postgrest import APIError
 from pydantic import ValidationError
 
-from config.settings import SERVICE_CREDENTIALS_TABLE
-from security.credentials import encrypt_secret
+from config.settings import USER_SERVICES_TABLE
 
 from .client import supabase
 from .models import (
@@ -19,7 +16,7 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-def create_service_credential(
+def create_user_service(
     telegram_user_id: int,
     service: str,
     enabled: bool = True,
@@ -31,29 +28,29 @@ def create_service_credential(
         "enabled": enabled,
     }
     try:
-        supabase.table(SERVICE_CREDENTIALS_TABLE).insert(row).execute()
+        supabase.table(USER_SERVICES_TABLE).insert(row).execute()
     except APIError:
         logger.error(
-            f"Error creating {service} credential for user {telegram_user_id}",
+            f"Error creating {service} service for user {telegram_user_id}",
             exc_info=True,
         )
         return False
     except Exception as e:
         logger.error(
-            f"Unexpected exception {e} creating {service} for user {telegram_user_id}"
+            f"Unexpected exception {e} creating {service} service for user {telegram_user_id}"
         )
         return False
 
     logger.info(
-        f"Created {service} credential for user {telegram_user_id} (enabled={enabled})"
+        f"Created {service} service for user {telegram_user_id} (enabled={enabled})"
     )
     return True
 
 
-def get_service_credentials(telegram_user_id: int) -> list[DbUserService] | None:
+def get_user_services(telegram_user_id: int) -> list[DbUserService] | None:
     try:
         response = (
-            supabase.table(SERVICE_CREDENTIALS_TABLE)
+            supabase.table(USER_SERVICES_TABLE)
             .select("*")
             .eq("telegram_user_id", telegram_user_id)
             .order("service", desc=True)
@@ -61,13 +58,13 @@ def get_service_credentials(telegram_user_id: int) -> list[DbUserService] | None
         )
     except (APIError, ValidationError):
         logger.error(
-            f"Error fetching service credentials for user {telegram_user_id}",
+            f"Error fetching services for user {telegram_user_id}",
             exc_info=True,
         )
         return None
     except Exception:
         logger.error(
-            f"Unexpected error fetching service credentials for user {telegram_user_id}",
+            f"Unexpected error fetching services for user {telegram_user_id}",
             exc_info=True,
         )
         return None
@@ -76,7 +73,7 @@ def get_service_credentials(telegram_user_id: int) -> list[DbUserService] | None
         return [DbUserService.model_validate(row) for row in response.data]
     except ValidationError:
         logger.error(
-            f"Invalid service credential data for user {telegram_user_id}",
+            f"Invalid service data for user {telegram_user_id}",
             exc_info=True,
         )
         return None
@@ -88,7 +85,7 @@ def set_service_enabled(
     enabled: bool,
 ) -> bool:
     try:
-        supabase.table(SERVICE_CREDENTIALS_TABLE).update({"enabled": enabled}).eq(
+        supabase.table(USER_SERVICES_TABLE).update({"enabled": enabled}).eq(
             "telegram_user_id", telegram_user_id
         ).eq("service", service).execute()
     except APIError:
@@ -108,62 +105,12 @@ def set_service_enabled(
     return True
 
 
-def set_service_secret(
-    telegram_user_id: int,
-    service: str,
-    secret: str,
-) -> bool:
-    """Store a verified service credential, then enable its service."""
-    encrypted_secret = encrypt_secret(secret)
-    if encrypted_secret is None:
-        return False
-
-    now = datetime.now(timezone.utc)
-    expiry_month = now.month + 3
-    expiry_year = now.year + (expiry_month - 1) // 12
-    expiry_month = (expiry_month - 1) % 12 + 1
-    expires_at = now.replace(
-        year=expiry_year,
-        month=expiry_month,
-        day=min(now.day, monthrange(expiry_year, expiry_month)[1]),
-    )
-
-    try:
-        supabase.table(SERVICE_CREDENTIALS_TABLE).update(
-            {
-                "encrypted_secret": encrypted_secret,
-                "enabled": True,
-                "expires_at": expires_at.isoformat(),
-                "updated_at": now.isoformat(),
-            }
-        ).eq("telegram_user_id", telegram_user_id).eq("service", service).execute()
-    except APIError:
-        logger.error(
-            "Error saving %s credential for user %s",
-            service,
-            telegram_user_id,
-            exc_info=True,
-        )
-        return False
-    except Exception:
-        logger.error(
-            "Unexpected error saving %s credential for user %s",
-            service,
-            telegram_user_id,
-            exc_info=True,
-        )
-        return False
-
-    logger.info("Saved verified %s credential for user %s", service, telegram_user_id)
-    return True
-
-
 def get_mcqueen_users() -> list[McQueenUser] | None:
     """Fetch every user with McQueen enabled."""
 
     try:
         response = (
-            supabase.table(SERVICE_CREDENTIALS_TABLE)
+            supabase.table(USER_SERVICES_TABLE)
             .select("users!inner(telegram_chat_id, telegram_username)")
             .eq("service", "mcqueen")
             .eq("enabled", True)
@@ -183,28 +130,28 @@ def get_mcqueen_users() -> list[McQueenUser] | None:
 
 
 def get_authenticated_hermione_users() -> list[HermioneUser] | None:
-    """Fetch every user with Hermione enabled."""
+    """Fetch every user with Hermione enabled and a stored Canvas key."""
 
     try:
         response = (
-            supabase.table(SERVICE_CREDENTIALS_TABLE)
+            supabase.table(USER_SERVICES_TABLE)
             .select(
-                "encrypted_secret, users!inner(telegram_chat_id, telegram_username)"
+                "users!inner(telegram_chat_id, telegram_username, "
+                "user_credentials!inner(encrypted_secret))"
             )
             .eq("service", "hermione")
             .eq("enabled", True)
-            .not_.is_("encrypted_secret", "null")
+            .eq("users.user_credentials.provider", "canvas")
             .execute()
         )
         # Each row looks like
-        # {"encrypted_secret": "...", "users": {"telegram_chat_id": 123, "telegram_username": "foo"}}
+        # {"users": {"telegram_chat_id": 123, "telegram_username": "foo",
+        #            "user_credentials": [{"encrypted_secret": "..."}]}}
         return [HermioneUser.model_validate(row) for row in response.data]
 
     except (APIError, ValidationError):
-        logger.error("Error fetching enabled Hermione credentials", exc_info=True)
+        logger.error("Error fetching enabled Hermione users", exc_info=True)
         return None
     except Exception:
-        logger.error(
-            "Unexpected error fetching enabled Hermione credentials", exc_info=True
-        )
+        logger.error("Unexpected error fetching enabled Hermione users", exc_info=True)
         return None

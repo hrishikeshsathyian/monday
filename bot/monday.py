@@ -3,6 +3,7 @@ import logging
 from telegram import Update
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     ConversationHandler,
@@ -11,93 +12,79 @@ from telegram.ext import (
 )
 
 from config.settings import MONDAY_BOT_TOKEN
-from bot.hermione import (
+from bot.config import (
+    CANVAS_DEPENDENT_SERVICES,
+    MONDAY_TOGGLE_SERVICES,
+    MONDAY_LONG_RUNNING_SERVICES,
+)
+from bot.text_presets import (
+    ALREADY_REGISTERED_TEXT,
+    NOT_REGISTERED_TEXT,
+    SERVICE_DISABLED_TEXT,
+    SERVICE_ENABLED_TEXT,
+    SERVICE_STATE_FAILED_TEXT,
+    SIGNUP_FAILED_TEXT,
+    WELCOME_TEXT,
+)
+from bot.canvas_auth import (
     AWAITING_CANVAS_API_KEY,
-    cancel_hermione_auth,
+    CanvasAuthResult,
+    cancel_canvas_auth,
+    pop_pending_service,
     prompt_canvas_auth,
     receive_canvas_api_key,
 )
-from db.service_credentials import (
-    get_service_credentials,
+from bot.walle import (
+    COURSE_CALLBACK_PATTERN,
+    CoursePickerResult,
+    handle_course_selected,
+    send_course_picker,
+)
+from db.user_services import (
+    get_user_services,
     set_service_enabled,
 )
+from db.user_credentials import has_credential
 from db.models import DbUserService
 from db.users import get_user, try_create_user
 
 logger = logging.getLogger(__name__)
 
-
-# Services exposed as Telegram commands.
-MONDAY_SERVICES: dict[str, str] = {
-    "mcqueen": "Live Alerts for new SG Computing Internship Listings",
-    "hermione": "Automatic Daily NUS Canvas Digest: Upcoming Classes and Deadlines",
-}
-
-
-ALREADY_REGISTERED_TEXT = (
-    "<b>You're already set up!</b>\n\n"
-    "You can manage your services anytime using the commands below."
-)
-
-WELCOME_TEXT = (
-    "👋 <b>Welcome to Monday!</b>\n\n"
-    "You're all set.\n\n"
-    "Connect the services you'd like Monday to use. "
-    "You can turn them on or off at any time."
-)
-
-SIGNUP_FAILED_TEXT = (
-    "😔 <b>Couldn't complete registration</b>\n\n"
-    "Something went wrong while setting up your account.\n"
-    "Please try again in a moment."
-)
-
-NOT_REGISTERED_TEXT = (
-    "<b>Oops! You're not registered yet.</b>\n\n" "Run /start first to get set up."
-)
-
-SERVICE_STATE_FAILED_TEXT = (
-    "⚠️ <b>Couldn't load your services</b>\n\n" "Please try again in a moment."
-)
-
-# Sent after a toggle so users know what to expect from the service.
-SERVICE_ENABLED_TEXT: dict[str, str] = {
-    "mcqueen": (
-        "<b>McQueen enabled.</b> New internship listings will be sent to you live as they come in."
-    ),
-    "hermione": (
-        "<b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning!"
-    ),
-}
-
-SERVICE_DISABLED_TEXT: dict[str, str] = {
-    "mcqueen": "<b>McQueen disabled.</b> You won't receive internship listings anymore.",
-    "hermione": "<b>Hermione disabled.</b> You won't receive daily digests anymore.",
+# What each on-demand service (see ON_DEMAND_SERVICES) does once Canvas is
+# connected for it. Lives here rather than bot/config.py because it points at handlers.
+ON_DEMAND_AFTER_CANVAS_AUTH = {
+    "walle": send_course_picker,
 }
 
 
 def format_service_overview(
-    service_credentials: list[DbUserService],
+    user_services: list[DbUserService],
 ) -> str:
 
     lines = [
-        "⚙️ <b>Your services</b>",
+        "⚙️ <b>Your services</b> ⚙️",
         "",
     ]
 
-    for credential in service_credentials:
-        service_name = credential.service.title()
-        description = MONDAY_SERVICES.get(credential.service, "")
-        icon, state = ("✅", "Enabled") if credential.enabled else ("○", "Disabled")
+    for user_service in user_services:
+        service_name, description = MONDAY_TOGGLE_SERVICES.get(
+            user_service.service, (user_service.service.title(), "")
+        )
+        icon, state = ("✅", "Enabled") if user_service.enabled else ("○", "Disabled")
 
         lines.append(
             f"{icon} <b>{service_name}</b> - {description}\n"
-            f"   {state} · /{credential.service}"
+            f"   {state} · /{user_service.service} to toggle on/off"
         )
 
         lines.append("")
 
-    lines.append("Press the commands above to toggle a service on and off.")
+    for command, (service_name, description) in MONDAY_LONG_RUNNING_SERVICES.items():
+        lines.append(
+            f"✅ <b>{service_name}</b> - {description}\n"
+            f"   Always Enabled · /{command} to choose a module and download its files"
+        )
+        lines.append("")
 
     return "\n".join(lines)
 
@@ -113,9 +100,9 @@ async def send_service_overview(update: Update) -> None:
     if user is None:
         return
 
-    service_credentials = get_service_credentials(user.id)
+    user_services = get_user_services(user.id)
 
-    if service_credentials is None:
+    if user_services is None:
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
@@ -123,7 +110,7 @@ async def send_service_overview(update: Update) -> None:
         return
 
     await update.message.reply_text(
-        format_service_overview(service_credentials),
+        format_service_overview(user_services),
         parse_mode="HTML",
     )
 
@@ -132,7 +119,7 @@ async def handle_register(
     update: Update,
     _context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """Handle /start and create the user's Monday account if needed."""
+    """Create user account if user is not registered with Monday"""
 
     if update.message is None:
         return
@@ -142,19 +129,14 @@ async def handle_register(
 
     if user is None or chat is None:
         logger.error(
-            "/start triggered without effective user or chat. "
-            "Effective user: %s, Effective chat: %s",
-            user,
-            chat,
+            f"/start triggered without effective user or chat. Effective user: {user}, Effective chat: {chat}"
         )
         return
 
     # Existing users do not need to be registered again.
     if get_user(user.id) is not None:
         logger.info(
-            "User %s (@%s) is already registered",
-            user.id,
-            user.username,
+            f"User {user.id} (@{user.username}) is already registered",
         )
 
         await update.message.reply_text(
@@ -165,13 +147,9 @@ async def handle_register(
         await send_service_overview(update)
         return
 
-    logger.info(
-        "Onboarding new user %s (@%s)...",
-        user.id,
-        user.username,
-    )
+    # user is not registered yet, begin onboarding
+    logger.info(f"Onboarding new user {user.id} (@{user.username})...")
 
-    # Store the Telegram user/chat details and initialise their services.
     if not try_create_user(
         telegram_user_id=user.id,
         telegram_chat_id=chat.id,
@@ -200,7 +178,9 @@ async def handle_status(
     if update.message is None or update.effective_user is None:
         return
 
-    if get_user(update.effective_user.id) is None:
+    # check if user is authenticated
+    is_user_registered = True if get_user(update.effective_user.id) else False
+    if not is_user_registered:
         await update.message.reply_text(
             NOT_REGISTERED_TEXT,
             parse_mode="HTML",
@@ -216,24 +196,15 @@ async def handle_service_toggle(
 ) -> int:
     """Toggle the service corresponding to the command the user sent."""
 
-    if update.message is None:
+    if update.message is None or update.effective_user is None:
         return ConversationHandler.END
 
     user = update.effective_user
 
-    if user is None:
-        await update.message.reply_text(
-            SERVICE_STATE_FAILED_TEXT,
-            parse_mode="HTML",
-        )
-        return ConversationHandler.END
+    service = (update.message.text or "").split()[0].lstrip("/").split("@")[0]
 
-    command = (update.message.text or "").split()[0].lstrip("/").split("@")[0]
-
-    service = command
-
-    # Check is user is already registered
     is_user_registered = True if get_user(user.id) else False
+
     if not is_user_registered:
         await update.message.reply_text(
             NOT_REGISTERED_TEXT,
@@ -241,39 +212,27 @@ async def handle_service_toggle(
         )
         return ConversationHandler.END
 
-    service_credentials = get_service_credentials(user.id)
+    user_services = get_user_services(user.id)
 
-    if service_credentials is None:
+    if user_services is None:
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
         )
         return ConversationHandler.END
 
-    # Find the current enabled state for the requested service.
+    # we use current_state here to account for empty list handling
     current_state = next(
         (
-            credential.enabled
-            for credential in service_credentials
-            if credential.service == service
+            user_service.enabled
+            for user_service in user_services
+            if user_service.service == service
         ),
         None,
     )
 
     if current_state is None:
-        if not service_credentials:
-            logger.error(
-                "User %s has no service credential rows (requested %s)",
-                user.id,
-                service,
-            )
-        else:
-            logger.error(
-                "User %s has no credential row for service %s (found: %s)",
-                user.id,
-                service,
-                [credential.service for credential in service_credentials],
-            )
+        logger.error(f"User {user.id} has no row for service {service}")
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
@@ -282,62 +241,130 @@ async def handle_service_toggle(
 
     new_state = not current_state
 
-    # Hermione requires a Canvas API key before it can be enabled.
-    # If the user has not authenticated before, begin the auth conversation
-    # instead of enabling the service immediately.
-    if (
-        service == "hermione"
-        and new_state
-        and not next(
-            credential.encrypted_secret
-            for credential in service_credentials
-            if credential.service == service
-        )
-    ):
-        await prompt_canvas_auth(update)
+    # Canvas services need the user's Canvas key before they can be enabled.
+    if service in CANVAS_DEPENDENT_SERVICES and new_state:
+        has_canvas_key = has_credential(user.id, "canvas")
+        if has_canvas_key is None:
+            logger.error(
+                f"Error checking Canvas API key for {user.id}...",
+            )
+            await update.message.reply_text(
+                SERVICE_STATE_FAILED_TEXT,
+                parse_mode="HTML",
+            )
+            await send_service_overview(update)
+            return ConversationHandler.END
 
-        # ConversationHandler will now route the user's next text message
-        # to handle_canvas_api_key().
-        return AWAITING_CANVAS_API_KEY
+        if not has_canvas_key:
+            return await prompt_canvas_auth(update, context, service)
 
-    # Services that do not require authentication can be toggled immediately.
-    if not set_service_enabled(
-        user.id,
-        service,
-        new_state,
-    ):
+    if await set_service_and_reply(update, user.id, service, new_state):
+        await send_service_overview(update)
+
+    return ConversationHandler.END
+
+
+async def set_service_and_reply(
+    update: Update,
+    telegram_user_id: int,
+    service: str,
+    enabled: bool,
+) -> bool:
+    """Enable or disable a service and tell the user what to expect."""
+
+    if update.message is None:
+        return False
+
+    if not set_service_enabled(telegram_user_id, service, enabled):
         await update.message.reply_text(
             SERVICE_STATE_FAILED_TEXT,
             parse_mode="HTML",
         )
-        return ConversationHandler.END
+        return False
 
     await update.message.reply_text(
-        SERVICE_ENABLED_TEXT[service] if new_state else SERVICE_DISABLED_TEXT[service],
+        SERVICE_ENABLED_TEXT[service] if enabled else SERVICE_DISABLED_TEXT[service],
         parse_mode="HTML",
     )
-
-    await send_service_overview(update)
-
-    # No further interaction is needed for this command.
-    return ConversationHandler.END
+    return True
 
 
 async def handle_canvas_api_key(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> int:
-    """Run Hermione's key check, then show the overview once the flow ends."""
+    """Run the Canvas key check, then continue the service that asked for it."""
 
-    next_state = await receive_canvas_api_key(update, context)
+    result = await receive_canvas_api_key(update)
+    if result is CanvasAuthResult.RETRY:
+        return AWAITING_CANVAS_API_KEY
 
-    if next_state == ConversationHandler.END:
+    service = pop_pending_service(context)
+
+    # End flow without a saved key, still update user on current state of services
+    if result is CanvasAuthResult.FAILED:
         await send_service_overview(update)
-    return next_state
+        return ConversationHandler.END
+
+    # long running services aren't enabled; they carry on with their own next step.
+    continue_service = ON_DEMAND_AFTER_CANVAS_AUTH.get(service or "")
+    if continue_service is not None:
+        await continue_service(update)
+        return ConversationHandler.END
+
+    # if it wasn't a long running service, but instead a toggle service like mcqueen or hermione, then we set_service_and_reply
+    if update.effective_user is not None:
+        if service is None:
+            logger.error(
+                f"Canvas connected for user {update.effective_user.id} (@{update.effective_user.username}) but no service was waiting on it"
+            )
+        else:
+            await set_service_and_reply(update, update.effective_user.id, service, True)
+
+    await send_service_overview(update)
+    return ConversationHandler.END
+
+
+async def handle_walle(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> int:
+    """Handle /walle: show the user's Canvas courses, connecting Canvas first if needed."""
+
+    if update.message is None or update.effective_user is None:
+        return ConversationHandler.END
+
+    user = update.effective_user
+
+    if get_user(user.id) is None:
+        await update.message.reply_text(
+            NOT_REGISTERED_TEXT,
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
+
+    has_canvas_key = has_credential(user.id, "canvas")
+    if has_canvas_key is None:
+        logger.error(
+            f"Not running Wall-E for user {user.id} (@{user.username}): could not check their Canvas key"
+        )
+        await update.message.reply_text(
+            SERVICE_STATE_FAILED_TEXT,
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
+
+    if not has_canvas_key:
+        return await prompt_canvas_auth(update, context, "walle")
+
+    if await send_course_picker(update) is CoursePickerResult.KEY_REJECTED:
+        return await prompt_canvas_auth(update, context, "walle")
+
+    return ConversationHandler.END
 
 
 def run_monday() -> None:
-    """Create the Telegram application, register handlers and start polling."""
+    """Starts polling the long-running Monday bot to listen to user commands"""
 
     app = Application.builder().token(MONDAY_BOT_TOKEN).build()
 
@@ -358,16 +385,20 @@ def run_monday() -> None:
     )
 
     # Service commands act as both normal toggles and entry points into
-    # multi-step flows such as Hermione's Canvas authentication.
+    # multi-step flows such as Canvas authentication.
     app.add_handler(
         ConversationHandler(
             entry_points=[
                 CommandHandler(
-                    list(MONDAY_SERVICES.keys()),
+                    list(MONDAY_TOGGLE_SERVICES.keys()),
                     handle_service_toggle,
                 ),
+                CommandHandler(
+                    "walle",
+                    handle_walle,
+                ),
             ],
-            # If handle_service_toggle returns AWAITING_CANVAS_API_KEY,
+            # If a function returns AWAITING_CANVAS_API_KEY,
             # the next non-command text message is treated as the API key.
             states={
                 AWAITING_CANVAS_API_KEY: [
@@ -377,17 +408,27 @@ def run_monday() -> None:
                     ),
                 ],
             },
-            # /cancel lets the user exit the Hermione authentication flow.
+            # /cancel lets the user exit the Canvas authentication flow.
             fallbacks=[
                 CommandHandler(
                     "cancel",
-                    cancel_hermione_auth,
+                    cancel_canvas_auth,
                 ),
             ],
         )
     )
 
-    logger.info("MondayBot polling for updates")
+    # Taps on Wall-E's course buttons.
+    app.add_handler(
+        CallbackQueryHandler(
+            handle_course_selected,
+            pattern=COURSE_CALLBACK_PATTERN,
+            # A course can take a minute to download; don't hold up other users' updates.
+            block=False,
+        )
+    )
+
+    logger.info("MondayBot polling for updates...")
 
     # run_polling manages its own event loop,
     # so don't call this from inside asyncio.run().

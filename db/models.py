@@ -61,6 +61,16 @@ class DbUserService(BaseModel):
     updated_at: datetime
 
 
+class DbUserCredential(BaseModel):
+    telegram_user_id: int
+    provider: str
+    encrypted_secret: str
+    expires_at: datetime
+
+    created_at: datetime
+    updated_at: datetime
+
+
 # Query results of user_services joined with users, not mirrors of a table.
 # Supabase nests the joined columns under "users"; AliasPath reads them from there.
 class McQueenUser(BaseModel):
@@ -83,4 +93,7 @@ class HermioneUser(BaseModel):
     telegram_username: str | None = Field(
         validation_alias=AliasPath("users", "telegram_username")
     )
-    encrypted_secret: str
+    # The user's Canvas key; the query filters user_credentials down to that one row.
+    encrypted_secret: str = Field(
+        validation_alias=AliasPath("users", "user_credentials", 0, "encrypted_secret")
+    )

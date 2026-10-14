@@ -9,7 +9,7 @@ from bot.mcqueen import BATCH_THRESHOLD, send_job, send_job_batch
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
 from db.jobs import get_seen_global_ids, upsert_jobs
 from db.models import McQueenUser
-from db.service_credentials import get_mcqueen_users
+from db.user_services import get_mcqueen_users
 
 from .config import JOB_CHANNELS, NON_TECH, TECH_INTERN, TECH_NON_INTERN, JobChannel
 from .scrapers.base import ScraperSource
@@ -93,11 +93,7 @@ class McQueenRunner:
         for job in jobs:
             if not await send_job(job, chat_id=chat_id, is_intern=is_intern, bot=bot):
                 logger.error(
-                    "Failed to send %s (%s at %s) to chat %s",
-                    job.global_id,
-                    job.title,
-                    job.company,
-                    chat_id,
+                    f"Failed to send {job.global_id} ({job.title} at {job.company}) to chat {chat_id}"
                 )
                 all_sent = False
         return all_sent
@@ -110,12 +106,10 @@ class McQueenRunner:
         if await self._send_jobs(
             jobs, channel.telegram_chat_id, channel.is_intern, mcqueen_channel_bot
         ):
-            logger.info("Published %d job(s) to %s", len(jobs), channel.table_name)
+            logger.info(f"Published {len(jobs)} job(s) to {channel.table_name}")
         else:
             logger.error(
-                "Failed to publish some of %d job(s) to %s",
-                len(jobs),
-                channel.table_name,
+                f"Failed to publish some of {len(jobs)} job(s) to {channel.table_name}"
             )
 
     async def _publish_to_monday(
@@ -131,16 +125,10 @@ class McQueenRunner:
                 sent += 1
             else:
                 logger.error(
-                    "Failed to send some of %d internship(s) to chat %s (@%s)",
-                    len(jobs),
-                    user.telegram_chat_id,
-                    user.telegram_username,
+                    f"Failed to send some of {len(jobs)} internship(s) to chat {user.telegram_chat_id} (@{user.telegram_username})"
                 )
         logger.info(
-            "Sent %d internship(s) to %d/%d McQueen subscribers",
-            len(jobs),
-            sent,
-            len(mcqueen_users),
+            f"Sent {len(jobs)} internship(s) to {sent}/{len(mcqueen_users)} McQueen subscribers"
         )
 
     def _load_subscribers(self) -> list[McQueenUser] | None:

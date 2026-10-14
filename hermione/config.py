@@ -2,9 +2,6 @@
 
 from zoneinfo import ZoneInfo
 
-# NUS Canvas instance that student API keys are issued for.
-CANVAS_URL = "https://canvas.nus.edu.sg"
-
 # Users processed at once; each user's Canvas requests stay sequential to respect
 # Canvas's per-token rate limit.
 MAX_CONCURRENT_USERS = 10

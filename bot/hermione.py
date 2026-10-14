@@ -1,99 +1,14 @@
-import asyncio
+"""All bot messaging functionality UNIQUE to Hermione Service"""
+
 import html
-import logging
 from datetime import datetime
 
-from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler
-
-from db.service_credentials import set_service_secret
-from hermione.canvas import UpcomingAssignment, canvas_healthcheck
+from hermione.assignments import UpcomingAssignment
 from hermione.config import DIGEST_WINDOW_DAYS, DISPLAY_TIMEZONE
 from hermione.nusmods import Lesson
 
 from .client import monday_bot
 from .messages import send_message
-
-logger = logging.getLogger(__name__)
-
-AWAITING_CANVAS_API_KEY = 1
-
-AUTH_PROMPT_TEXT = (
-    "🔐 <b>Connect Hermione to Canvas</b>\n\n"
-    "Paste your Canvas API key to continue.\n\n"
-    "<b>Where to find it? </b> \n Canvas → Account → Settings → Approved Integrations → New Access Token\n\n"
-    "Your token is encrypted safely before being stored and is never exposed in plaintext.\n\n"
-    "Use /cancel to cancel authentication flow."
-)
-CHECKING_KEY_TEXT = "Validating your Canvas API key…"
-INVALID_KEY_TEXT = (
-    "⚠️ <b>That Canvas API key didn't work.</b>\n\n"
-    "Please try again with another key, or use /cancel to stop the authentication process."
-)
-CANVAS_UNAVAILABLE_TEXT = (
-    "⚠️ <b>Couldn't reach Canvas to check your key.</b>\n\n"
-    "Please send it again in a moment, or use /cancel to stop the authentication process."
-)
-SERVICE_STATE_FAILED_TEXT = (
-    "⚠️ <b>Your Canvas Key was valid but we couldn't save it</b>\n\n"
-    "Please try again in a moment."
-)
-ENABLED_TEXT = (
-    "✅ <b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning!\n\n"
-    "Your Canvas key will be valid for the next 3 months."
-)
-CANCELLED_TEXT = "Hermione authentication flow cancelled."
-
-
-async def prompt_canvas_auth(update: Update) -> None:
-    if update.message is not None:
-        await update.message.reply_text(AUTH_PROMPT_TEXT, parse_mode="HTML")
-
-
-async def receive_canvas_api_key(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    del context
-
-    if update.message is None or update.effective_user is None:
-        return ConversationHandler.END
-
-    api_key = (update.message.text or "").strip()
-    if not api_key:
-        await update.message.reply_text(INVALID_KEY_TEXT, parse_mode="HTML")
-        return AWAITING_CANVAS_API_KEY
-
-    await update.message.reply_text(CHECKING_KEY_TEXT)
-    is_valid = await asyncio.to_thread(canvas_healthcheck, api_key)
-    if is_valid is None:
-        logger.error(
-            "Could not verify Canvas key for user %s; asked them to retry",
-            update.effective_user.id,
-        )
-        await update.message.reply_text(CANVAS_UNAVAILABLE_TEXT, parse_mode="HTML")
-        return AWAITING_CANVAS_API_KEY
-
-    if not is_valid:
-        await update.message.reply_text(INVALID_KEY_TEXT, parse_mode="HTML")
-        return AWAITING_CANVAS_API_KEY
-
-    if not set_service_secret(update.effective_user.id, "hermione", api_key):
-        await update.message.reply_text(SERVICE_STATE_FAILED_TEXT, parse_mode="HTML")
-        return ConversationHandler.END
-
-    await update.message.reply_text(ENABLED_TEXT, parse_mode="HTML")
-    return ConversationHandler.END
-
-
-async def cancel_hermione_auth(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> int:
-    del context
-    if update.message is not None:
-        await update.message.reply_text(CANCELLED_TEXT)
-    return ConversationHandler.END
 
 
 async def send_daily_digest(
@@ -120,7 +35,7 @@ def format_daily_digest(
         else "Rise and shine ☀️🐓!"
     )
     lines = [
-        "<b>[Hermione] Daily Digest</b>",
+        "<b> [📚 Hermione] Daily Digest</b>",
         "",
         f"{greeting}",
     ]

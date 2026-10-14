@@ -6,7 +6,7 @@ from typing import Any
 
 from .client import supabase
 from .models import DbUser
-from .service_credentials import create_service_credential
+from .user_services import create_user_service
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def try_create_user(
         supabase.table(USERS_TABLE).insert(row).execute()
 
         for service, is_enabled in SERVICES.items():
-            create_service_credential(telegram_user_id, service, is_enabled)
+            create_user_service(telegram_user_id, service, is_enabled)
 
     except APIError:
         logger.error(f"Error creating user {telegram_user_id}", exc_info=True)
