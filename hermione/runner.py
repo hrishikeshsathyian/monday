@@ -56,7 +56,7 @@ class HermioneRunner:
                 )
 
         sent = sum(result is True for result in results)
-        logger.info(f"Sent Hermione digests to {sent}/{len(users)} users")
+        logger.info(f"Sent Hermione reminders to {sent}/{len(users)} users")
 
     async def _send_digest(self, user: HermioneUser) -> bool:
         """Send one user's digest; True only if Telegram accepted it."""

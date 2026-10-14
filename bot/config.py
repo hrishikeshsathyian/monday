@@ -2,10 +2,10 @@
 
 # Services that can be toggled on and off
 MONDAY_TOGGLE_SERVICES: dict[str, tuple[str, str]] = {
-    "mcqueen": ("McQueen", "Live Alerts for new SG Computing Internship Listings"),
+    "mcqueen": ("McQueen", "Live Alerts for New SG Computing Internships"),
     "hermione": (
         "Hermione",
-        "Automatic Daily NUS Canvas Digest: Upcoming Classes and Deadlines",
+        "Automatic Daily NUS Class Schedule & Assignment Reminders",
     ),
 }
 
@@ -13,7 +13,7 @@ MONDAY_TOGGLE_SERVICES: dict[str, tuple[str, str]] = {
 MONDAY_LONG_RUNNING_SERVICES: dict[str, tuple[str, str]] = {
     "walle": (
         "Wall-E",
-        "Pick a Canvas Course and instantly get all of its files in one zip",
+        "One Tap NUS Canvas Course Files Downloader",
     ),
 }
 

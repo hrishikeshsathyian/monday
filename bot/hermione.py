@@ -35,7 +35,7 @@ def format_daily_digest(
         else "Rise and shine ☀️🐓!"
     )
     lines = [
-        "<b>[Hermione] Daily Digest</b>",
+        "<b> [📚 Hermione] Daily Digest</b>",
         "",
         f"{greeting}",
     ]

@@ -27,16 +27,16 @@ SERVICE_STATE_FAILED_TEXT = (
 # Sent after a toggle so users know what to expect from the service.
 SERVICE_ENABLED_TEXT: dict[str, str] = {
     "mcqueen": (
-        "<b>McQueen enabled.</b> New internship listings will be sent to you live as they come in ⚡"
+        "⚡ <b>McQueen enabled.</b> New internship listings will be sent to you live as they come in ⚡"
     ),
     "hermione": (
-        "<b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning 📚"
+        "📚 <b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning 📚"
     ),
 }
 
 SERVICE_DISABLED_TEXT: dict[str, str] = {
     "mcqueen": "<b>McQueen disabled.</b> You won't receive internship listings anymore.",
-    "hermione": "<b>Hermione disabled.</b> You won't receive daily digests anymore.",
+    "hermione": "<b>Hermione disabled.</b> You won't receive daily reminders anymore.",
 }
 
 
@@ -71,15 +71,15 @@ CANVAS_AUTH_CANCELLED_TEXT = "Canvas authentication flow cancelled."
 
 
 # ---------------------------------------------------------------------------
-# bot/walle.py: Wall-E course picker
+# bot/walle.py: Wall-E course picker and course zips
 # ---------------------------------------------------------------------------
 
 WALLE_PICKER_TEXT = (
-    "🤖📦 <b>[Wall-E] Course Files</b>\n\n"
+    " <b>[🤖📦 Wall-E] Course Files</b>\n\n"
     "Pick a course and I'll bring you all of its Canvas files in one zip."
 )
 WALLE_NO_COURSES_TEXT = (
-    "🤖📦 <b>[Wall-E]</b> You have no active Canvas courses right now."
+    " <b>[🤖📦 Wall-E]</b> You have no active Canvas courses right now."
 )
 WALLE_KEY_LOAD_FAILED_TEXT = (
     "⚠️ <b>Couldn't load your Canvas key</b>\n\n" "Please try /walle again in a moment."
@@ -92,3 +92,38 @@ WALLE_KEY_REJECTED_TEXT = (
     "⚠️ <b>Canvas no longer accepts your saved key</b>\n\n"
     "It may have expired or been revoked. Please try again."
 )
+
+# Templates below are filled with .format(); course codes must be HTML-escaped first.
+WALLE_FETCHING_TEXT = (
+    " <b>[🤖📦 Wall-E]</b> Fetching <b>{course_code}</b> files…\n\n"
+    "This can take a minute for bigger courses."
+)
+WALLE_DOWNLOADING_TEXT = (
+    " <b>[🤖📦 Wall-E]</b> Downloading <b>{course_code}</b> files…\n\n"
+    "{bar} {percent}%\n"
+    "{done_mb:.1f} / {total_mb:.1f} MB"
+)
+WALLE_ZIPPING_TEXT = " <b>[🤖📦 Wall-E]</b> Zipping <b>{course_code}</b> files…"
+WALLE_UPLOADING_TEXT = " <b>[🤖📦 Wall-E]</b> Sending <b>{course_code}</b> zip…"
+WALLE_SENT_TEXT = (
+    " <b>[🤖📦 Wall-E]</b> Sent all {file_count} files from <b>{course_code}</b> below."
+)
+WALLE_ZIP_CAPTION_TEXT = (
+    "<b>[🤖📦 Wall-E]</b> <b>{course_code}</b> · {file_count} files"
+)
+WALLE_NO_FILES_TEXT = " <b>[🤖📦 Wall-E]</b> <b>{course_code}</b> doesn't share any files you can download."
+WALLE_TOO_BIG_TEXT = (
+    " <b>[🤖📦 Wall-E]</b> <b>{course_code}</b>'s files are too big to send in one go "
+    "(Telegram limits bots to 50 MB per file).\n\n"
+    "Support for bigger courses is coming soon."
+)
+WALLE_FETCH_FAILED_TEXT = (
+    "⚠️ <b>Couldn't fetch {course_code} files</b>\n\n"
+    "Please try /walle again in a moment."
+)
+WALLE_FETCH_KEY_REJECTED_TEXT = (
+    "⚠️ <b>Canvas no longer accepts your saved key</b>\n\n"
+    "It may have expired or been revoked. Run /walle to connect Canvas again."
+)
+# Shown as a short pop-up, so plain text only.
+WALLE_FETCH_BUSY_TEXT = "Wall-E is still fetching your last course. Hang on!"

@@ -62,7 +62,7 @@ def format_service_overview(
 ) -> str:
 
     lines = [
-        "⚙️ <b>Your services</b>",
+        "⚙️ <b>Your services</b> ⚙️",
         "",
     ]
 
@@ -74,7 +74,7 @@ def format_service_overview(
 
         lines.append(
             f"{icon} <b>{service_name}</b> - {description}\n"
-            f"   {state} · /{user_service.service} to toggle"
+            f"   {state} · /{user_service.service} to toggle on/off"
         )
 
         lines.append("")
@@ -82,7 +82,7 @@ def format_service_overview(
     for command, (service_name, description) in MONDAY_LONG_RUNNING_SERVICES.items():
         lines.append(
             f"✅ <b>{service_name}</b> - {description}\n"
-            f"   Always Available · /{command} to run"
+            f"   Always Enabled · /{command} to choose a module and download its files"
         )
         lines.append("")
 
@@ -423,10 +423,12 @@ def run_monday() -> None:
         CallbackQueryHandler(
             handle_course_selected,
             pattern=COURSE_CALLBACK_PATTERN,
+            # A course can take a minute to download; don't hold up other users' updates.
+            block=False,
         )
     )
 
-    logger.info("MondayBot polling for updates")
+    logger.info("MondayBot polling for updates...")
 
     # run_polling manages its own event loop,
     # so don't call this from inside asyncio.run().
