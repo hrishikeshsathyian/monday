@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bot.hermione import send_daily_digest
 from config.settings import HERMIONE_DEV_CHAT_ID, IS_DEV
@@ -76,7 +76,7 @@ class HermioneRunner:
             )
             return False
 
-        classes = await self._get_todays_classes(api_key)
+        classes = await self._get_tomorrows_classes(api_key)
         if classes is None:
             logger.error(
                 f"Sending Hermione digest to chat {user.telegram_chat_id} (@{user.telegram_username}) without classes: could not load their classes"
@@ -95,15 +95,16 @@ class HermioneRunner:
         )
         return True
 
-    async def _get_todays_classes(self, api_key: str) -> list[Lesson] | None:
-        today = datetime.now(DISPLAY_TIMEZONE).date()
+    async def _get_tomorrows_classes(self, api_key: str) -> list[Lesson] | None:
+        # The digest goes out the night before, so it lists the next day's classes.
+        tomorrow = datetime.now(DISPLAY_TIMEZONE).date() + timedelta(days=1)
 
         # early termination for weekend, assume there are no classes
-        if not is_weekday(today):
+        if not is_weekday(tomorrow):
             return []
 
         class_groups = await asyncio.to_thread(get_class_groups, api_key)
         if class_groups is None:
             return None
 
-        return await asyncio.to_thread(get_classes_on, today, class_groups)
+        return await asyncio.to_thread(get_classes_on, tomorrow, class_groups)

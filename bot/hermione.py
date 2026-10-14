@@ -30,9 +30,9 @@ def format_daily_digest(
     classes: list[Lesson] | None,
 ) -> str:
     greeting = (
-        f"Rise and shine {html.escape(username)} ☀️🐓!"
+        f"Good evening {html.escape(username)} 🌙! Here's what's coming up tomorrow."
         if username
-        else "Rise and shine ☀️🐓!"
+        else "Good evening 🌙! Here's what's coming up tomorrow."
     )
     lines = [
         "<b> [📚 Hermione] Daily Digest</b>",
@@ -40,13 +40,13 @@ def format_daily_digest(
         f"{greeting}",
     ]
 
-    lines += ["", "🗓 <b>Today's classes</b>"]
+    lines += ["", "🗓 <b>Tomorrow's classes</b>"]
     if classes is None:
-        lines.append("Couldn't load today's classes, check NUSMods or Canvas.")
+        lines.append("Couldn't load tomorrow's classes, check NUSMods or Canvas.")
     elif classes:
         lines += [_class_line(lesson) for lesson in classes]
     else:
-        lines.append("No classes today.")
+        lines.append("No classes tomorrow.")
 
     to_do = [assignment for assignment in assignments if not assignment.is_submitted]
     done = [assignment for assignment in assignments if assignment.is_submitted]

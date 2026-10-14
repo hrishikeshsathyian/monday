@@ -30,7 +30,7 @@ SERVICE_ENABLED_TEXT: dict[str, str] = {
         "⚡ <b>McQueen enabled.</b> New internship listings will be sent to you live as they come in ⚡"
     ),
     "hermione": (
-        "📚 <b>Hermione enabled.</b> Your next daily digest will arrive tomorrow morning 📚"
+        "📚 <b>Hermione enabled.</b> Your daily digest for the next day will arrive at 10pm each night 📚"
     ),
 }
 
