@@ -40,3 +40,11 @@ FERNET_KEY = os.environ["FERNET_KEY"]
 # CANVAS CONFIG
 # NUS Canvas instance that student API keys are issued for.
 CANVAS_URL = "https://canvas.nus.edu.sg"
+
+# CLOUDFLARE R2 CONFIG
+# Only the Monday bot uses R2, so these are optional: McQueen and Hermione run
+# without them, and integrations/r2.py fails its uploads if they're missing.
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
+R2_BUCKET = os.environ.get("R2_BUCKET")

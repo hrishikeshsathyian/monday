@@ -105,6 +105,17 @@ WALLE_DOWNLOADING_TEXT = (
 )
 WALLE_ZIPPING_TEXT = " <b>[🤖📦 Wall-E]</b> Zipping <b>{course_code}</b> files…"
 WALLE_UPLOADING_TEXT = " <b>[🤖📦 Wall-E]</b> Sending <b>{course_code}</b> zip…"
+WALLE_LINKING_TEXT = (
+    " <b>[🤖📦 Wall-E]</b> Preparing a download link for <b>{course_code}</b> "
+    "({size_mb:.1f} MB)…"
+)
+WALLE_LINK_READY_TEXT = (
+    " <b>[🤖📦 Wall-E]</b> <b>{course_code}</b> · {file_count} files, {size_mb:.1f} MB\n\n"
+    "Too big to send in chat, so tap below to download it. "
+    "The link works for {hours} hours."
+)
+# Button labels are plain text.
+WALLE_LINK_BUTTON_TEXT = "⬇️ Download {filename}"
 WALLE_SENT_TEXT = (
     " <b>[🤖📦 Wall-E]</b> Sent all {file_count} files from <b>{course_code}</b> below."
 )
@@ -113,9 +124,8 @@ WALLE_ZIP_CAPTION_TEXT = (
 )
 WALLE_NO_FILES_TEXT = " <b>[🤖📦 Wall-E]</b> <b>{course_code}</b> doesn't share any files you can download."
 WALLE_TOO_BIG_TEXT = (
-    " <b>[🤖📦 Wall-E]</b> <b>{course_code}</b>'s files are too big to send in one go "
-    "(Telegram limits bots to 50 MB per file).\n\n"
-    "Support for bigger courses is coming soon."
+    " <b>[🤖📦 Wall-E]</b> <b>{course_code}</b>'s files add up to more than "
+    "{limit_mb:.0f} MB, which is too big for Wall-E to fetch."
 )
 WALLE_FETCH_FAILED_TEXT = (
     "⚠️ <b>Couldn't fetch {course_code} files</b>\n\n"

@@ -13,7 +13,7 @@ Monday offers various sub-services, each with its own distinct functionality. Pi
 |---|---|
 | **McQueen ⚡** | <ins>**Live Alerts**</ins> for SG Computing Internship Listings|
 | **Hermione 📚** | <ins>**Daily**</ins> Canvas reminders for Upcoming Assignments and Quizzes |
-| **Wall-E 📦** | <ins>**On-demand**</ins> Canvas Course files, zipped and sent straight to your chat |
+| **Wall-E 📦** | <ins>**On-demand**</ins> Canvas Course files, zipped and sent to your chat (bigger courses arrive as a download link) |
 
 > The individual architecture and implementation of each service is found in architectures/
 

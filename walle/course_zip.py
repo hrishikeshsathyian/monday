@@ -8,7 +8,7 @@ from pathlib import Path
 
 from integrations.canvas import CourseFile, download_course_file, get_course_files
 
-from .config import MAX_COURSE_DOWNLOAD_BYTES, MAX_ZIP_BYTES
+from .config import MAX_COURSE_DOWNLOAD_BYTES
 
 
 class CourseZipStatus(Enum):
@@ -40,6 +40,7 @@ class CourseZip:
     status: CourseZipStatus
     path: Path | None = None
     file_count: int = 0
+    size_bytes: int = 0
 
 
 def build_course_zip(
@@ -84,9 +85,9 @@ def build_course_zip(
         for file, entry_name in zip(files, _zip_entry_names(files)):
             archive.write(downloads / str(file.id), entry_name)
 
-    if zip_path.stat().st_size > MAX_ZIP_BYTES:
-        return CourseZip(CourseZipStatus.TOO_BIG)
-    return CourseZip(CourseZipStatus.READY, zip_path, len(files))
+    return CourseZip(
+        CourseZipStatus.READY, zip_path, len(files), zip_path.stat().st_size
+    )
 
 
 def _zip_entry_names(files: list[CourseFile]) -> list[str]:

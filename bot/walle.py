@@ -28,6 +28,9 @@ from bot.text_presets import (
     WALLE_FETCHING_TEXT,
     WALLE_KEY_LOAD_FAILED_TEXT,
     WALLE_KEY_REJECTED_TEXT,
+    WALLE_LINK_BUTTON_TEXT,
+    WALLE_LINK_READY_TEXT,
+    WALLE_LINKING_TEXT,
     WALLE_NO_COURSES_TEXT,
     WALLE_NO_FILES_TEXT,
     WALLE_PICKER_TEXT,
@@ -38,7 +41,13 @@ from bot.text_presets import (
     WALLE_ZIPPING_TEXT,
 )
 from db.user_credentials import get_credential
-from walle.config import PROGRESS_UPDATE_SECONDS, ZIP_UPLOAD_TIMEOUT_SECONDS
+from walle.config import (
+    MAX_COURSE_DOWNLOAD_BYTES,
+    MAX_TELEGRAM_ZIP_BYTES,
+    PROGRESS_UPDATE_SECONDS,
+    ZIP_LINK_EXPIRY_SECONDS,
+    ZIP_UPLOAD_TIMEOUT_SECONDS,
+)
 from walle.course_zip import (
     CourseZip,
     CourseZipStatus,
@@ -47,6 +56,7 @@ from walle.course_zip import (
     build_course_zip,
 )
 from walle.courses import Course, get_selectable_courses
+from walle.zip_link import get_zip_download_link
 
 logger = logging.getLogger(__name__)
 
@@ -208,13 +218,27 @@ async def _send_course_zip(
 
         if course_zip.status is CourseZipStatus.TOO_BIG:
             logger.info(
-                f"Not sending {course_code} to user {user.id} (@{user.username}): its files are too big for one Telegram upload"
+                f"Not fetching {course_code} for user {user.id} (@{user.username}): its files add up to more than {MAX_COURSE_DOWNLOAD_BYTES / 1_000_000:.0f} MB"
             )
             await query.edit_message_text(
-                WALLE_TOO_BIG_TEXT.format(course_code=code), parse_mode="HTML"
+                WALLE_TOO_BIG_TEXT.format(
+                    course_code=code, limit_mb=MAX_COURSE_DOWNLOAD_BYTES / 1_000_000
+                ),
+                parse_mode="HTML",
             )
             return
 
+        size_mb = course_zip.size_bytes / 1_000_000
+        if course_zip.size_bytes > MAX_TELEGRAM_ZIP_BYTES:
+            logger.info(
+                f"Built {course_code} zip ({course_zip.file_count} files, {size_mb:.1f} MB) for user {user.id} (@{user.username}); sending it as an R2 link"
+            )
+            await _send_zip_link(query, user, course_code, course_zip)
+            return
+
+        logger.info(
+            f"Built {course_code} zip ({course_zip.file_count} files, {size_mb:.1f} MB) for user {user.id} (@{user.username}); sending it through Telegram"
+        )
         await query.edit_message_text(
             WALLE_UPLOADING_TEXT.format(course_code=code), parse_mode="HTML"
         )
@@ -227,6 +251,57 @@ async def _send_course_zip(
     await query.edit_message_text(
         WALLE_SENT_TEXT.format(course_code=code, file_count=course_zip.file_count),
         parse_mode="HTML",
+    )
+
+
+async def _send_zip_link(
+    query: CallbackQuery,
+    user: User,
+    course_code: str,
+    course_zip: CourseZip,
+) -> None:
+    """Upload the zip to R2 and replace the status message with a download button."""
+
+    code = html.escape(course_code)
+    size_mb = course_zip.size_bytes / 1_000_000
+    if course_zip.path is None:
+        return
+
+    await query.edit_message_text(
+        WALLE_LINKING_TEXT.format(course_code=code, size_mb=size_mb), parse_mode="HTML"
+    )
+    # boto3 is blocking; to_thread keeps the bot responsive.
+    url = await asyncio.to_thread(get_zip_download_link, course_zip.path)
+    if url is None:
+        logger.error(
+            f"Not sending {course_code} link to user {user.id} (@{user.username}): could not upload the zip to R2"
+        )
+        await query.edit_message_text(
+            WALLE_FETCH_FAILED_TEXT.format(course_code=code), parse_mode="HTML"
+        )
+        return
+
+    await query.edit_message_text(
+        WALLE_LINK_READY_TEXT.format(
+            course_code=code,
+            file_count=course_zip.file_count,
+            size_mb=size_mb,
+            hours=ZIP_LINK_EXPIRY_SECONDS // 3600,
+        ),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        WALLE_LINK_BUTTON_TEXT.format(filename=course_zip.path.name),
+                        url=url,
+                    )
+                ]
+            ]
+        ),
+    )
+    logger.info(
+        f"Sent {course_code} zip link ({course_zip.file_count} files, {size_mb:.1f} MB) to user {user.id} (@{user.username})"
     )
 
 

@@ -107,8 +107,15 @@ sudo chown ubuntu:ubuntu /etc/monday/prod.env && sudo chmod 600 /etc/monday/prod
 ```
 
 `/etc/monday/prod.env` holds the prod values as `KEY=value` lines: `ENV=prod`,
-`MONDAY_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and
-`FERNET_KEY`.
+`MONDAY_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`,
+`FERNET_KEY`, and the Cloudflare R2 settings `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET`.
+
+- **R2 is where Wall-E puts zips over 10 MB.** Uploads from Lightsail to Telegram run
+  at about 300 KB/s, while uploads to R2 run at about 30 MB/s, so bigger zips go to R2
+  and the user gets a 24-hour download link instead. The bucket needs a lifecycle rule
+  that deletes objects after 1 day, and the API token only needs read/write on that
+  bucket.
 
 - **It lives outside the repo**, so a `git pull` can never overwrite it and it can't
   be committed by accident. `/etc` is where Linux keeps configuration.
